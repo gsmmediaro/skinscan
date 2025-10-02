@@ -78,10 +78,10 @@ export function useFaceDetection(videoRef: React.RefObject<HTMLVideoElement>) {
               const cx = (minX + maxX) / 2;
               const cy = (minY + maxY) / 2;
 
-              // Heuristics for quality
-              const centered = Math.abs(cx - 0.5) < 0.08 && Math.abs(cy - 0.5) < 0.08;
-              const sizeOk = height > 0.45 && height < 0.75; // roughly 45%-75% of frame height
-              const notTooWide = width / height < 0.9; // discourage extreme yaw
+              // Heuristics for quality (tuned for phone arms-length framing)
+              const centered = Math.abs(cx - 0.5) < 0.12 && Math.abs(cy - 0.5) < 0.12;
+              const sizeOk = height > 0.35 && height < 0.85; // roughly 35%-85% of frame height
+              const notTooWide = width / height < 1.1; // allow some yaw
 
               let pos: PositionQuality = "poor";
               if (centered && sizeOk && notTooWide) pos = "perfect";

@@ -9,20 +9,44 @@ interface CameraCaptureProps {
 }
 
 export const CameraCapture = ({ stream, onCapture, onFlipCamera }: CameraCaptureProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [containerSize, setContainerSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const [videoSize, setVideoSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const [feedback, setFeedback] = useState<string>("Position your face in the oval");
   const [countdown, setCountdown] = useState<number | null>(null);
   const [showGrid, setShowGrid] = useState(false);
   const [flashEnabled, setFlashEnabled] = useState(false);
   const [stabilityTimer, setStabilityTimer] = useState<number>(0);
   const { ready, faceDetected, positionQuality, lightingQuality, landmarks } = useFaceDetection(videoRef);
-  // Bind stream to video element
-  useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
+// Bind stream to video element
+useEffect(() => {
+  if (videoRef.current && stream) {
+    videoRef.current.srcObject = stream;
+  }
+}, [stream]);
+
+// Track container and video sizes to align overlays with object-contain
+useEffect(() => {
+  const update = () => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setContainerSize({ w: rect.width, h: rect.height });
     }
-  }, [stream]);
+    if (videoRef.current && (videoRef.current.videoWidth || videoRef.current.videoHeight)) {
+      setVideoSize({ w: videoRef.current.videoWidth, h: videoRef.current.videoHeight });
+    }
+  };
+  update();
+  window.addEventListener("resize", update);
+  const onLoaded = () => update();
+  videoRef.current?.addEventListener("loadedmetadata", onLoaded);
+  return () => {
+    window.removeEventListener("resize", update);
+    videoRef.current?.removeEventListener("loadedmetadata", onLoaded);
+  };
+}, []);
 
   // Feedback + stability gating
   useEffect(() => {
@@ -113,8 +137,22 @@ export const CameraCapture = ({ stream, onCapture, onFlipCamera }: CameraCapture
         return "text-danger";
     }
   };
+  // Compute displayed video rect for object-contain
+  const getDrawRect = () => {
+    const cw = containerSize.w || 1;
+    const ch = containerSize.h || 1;
+    const vw = videoSize.w || 1;
+    const vh = videoSize.h || 1;
+    const scale = Math.min(cw / vw, ch / vh);
+    const width = vw * scale;
+    const height = vh * scale;
+    const offsetX = (cw - width) / 2;
+    const offsetY = (ch - height) / 2;
+    return { offsetX, offsetY, width, height };
+  };
+  const rect = getDrawRect();
 
-  const canCapture = faceDetected && positionQuality === "perfect" && lightingQuality !== "dark" && stabilityTimer >= 10;
+  const canCapture = faceDetected && positionQuality === "perfect" && lightingQuality !== "dark" && stabilityTimer >= 6;
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
@@ -128,13 +166,13 @@ export const CameraCapture = ({ stream, onCapture, onFlipCamera }: CameraCapture
       </div>
 
       {/* Camera Preview */}
-      <div className="relative aspect-[3/4] max-h-[70vh] bg-black rounded-3xl overflow-hidden">
+      <div ref={containerRef} className="relative aspect-[3/4] max-h-[70vh] bg-black rounded-3xl overflow-hidden">
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
         />
 
         {/* Grid Overlay */}
@@ -151,8 +189,10 @@ export const CameraCapture = ({ stream, onCapture, onFlipCamera }: CameraCapture
         {/* Face Guide Overlay (Oval) */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div 
-            className={`w-64 h-80 rounded-[50%] border-4 ${getOverlayColor()} transition-colors duration-300`}
+            className={`rounded-[50%] border-4 ${getOverlayColor()} transition-colors duration-300`}
             style={{
+              width: `${rect.width * 0.6}px`,
+              height: `${rect.height * 0.75}px`,
               animation: positionQuality === "perfect" ? "pulse 2s ease-in-out infinite" : "none"
             }}
           />
@@ -165,7 +205,11 @@ export const CameraCapture = ({ stream, onCapture, onFlipCamera }: CameraCapture
               <div
                 key={i}
                 className="absolute w-1.5 h-1.5 rounded-full bg-success/80"
-                style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%`, transform: "translate(-50%, -50%)" }}
+                style={{ 
+                  left: `${rect.offsetX + p.x * rect.width}px`, 
+                  top: `${rect.offsetY + p.y * rect.height}px`, 
+                  transform: "translate(-50%, -50%)" 
+                }}
               />
             ))}
           </div>
