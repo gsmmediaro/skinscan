@@ -41,12 +41,12 @@ export const ProgressTracker = () => {
 
       <div className="border-t pt-4">
         <h4 className="font-semibold mb-3 text-sm">Weekly View</h4>
-        <div className="w-full">
+        <div className="w-full max-h-[280px] overflow-auto">
           <Calendar
             mode="single"
             selected={date}
             onSelect={setDate}
-            className="rounded-md border w-full scale-90 origin-top-left"
+            className="rounded-md border w-full [&_.rdp-months]:p-2 [&_.rdp-month]:space-y-2 [&_.rdp-day]:h-7 [&_.rdp-day]:w-7 [&_.rdp-caption]:text-sm"
           />
         </div>
       </div>
