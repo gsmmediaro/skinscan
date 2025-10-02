@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ interface ShareModalProps {
 }
 
 export const ShareModal = ({ open, onClose, onUnlock, glowScore }: ShareModalProps) => {
+  const navigate = useNavigate();
   const [emails, setEmails] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -108,8 +110,45 @@ export const ShareModal = ({ open, onClose, onUnlock, glowScore }: ShareModalPro
     }, 500);
   };
 
-  const handlePremiumUpgrade = () => {
-    toast.info("Premium upgrade coming soon!");
+  const handlePremiumUpgrade = async () => {
+    try {
+      setLoading(true);
+
+      // Check if user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error("Please sign in to upgrade", {
+          description: "You need to be signed in to access premium features"
+        });
+        onClose();
+        navigate("/auth");
+        return;
+      }
+
+      // Create Stripe checkout session
+      const { data, error } = await supabase.functions.invoke('create-checkout');
+
+      if (error) throw error;
+
+      if (data?.url) {
+        // Open Stripe checkout in new tab
+        window.open(data.url, '_blank');
+        toast.success("Opening checkout...", {
+          description: "Complete your purchase to unlock premium features"
+        });
+        onClose();
+      } else {
+        throw new Error("No checkout URL received");
+      }
+    } catch (error: any) {
+      console.error("Premium upgrade error:", error);
+      toast.error("Failed to start checkout", {
+        description: error.message || "Please try again later"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

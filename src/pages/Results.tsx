@@ -9,12 +9,14 @@ import { CheckCircle, Target, TrendingUp, TrendingDown, FileText, Download } fro
 import { getScanById } from "@/lib/storage";
 import { SkinAnalysis } from "@/lib/mockAI";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const Results = () => {
   const { scanId } = useParams();
   const navigate = useNavigate();
   const [scan, setScan] = useState<SkinAnalysis | null>(null);
   const [showHeatMap, setShowHeatMap] = useState(true);
+  const [premiumLoading, setPremiumLoading] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<{
     name: string;
     score: number;
@@ -43,6 +45,45 @@ const Results = () => {
 
     loadScan();
   }, [scanId, navigate]);
+
+  const handlePremiumUpgrade = async () => {
+    try {
+      setPremiumLoading(true);
+
+      // Check if user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error("Please sign in to upgrade", {
+          description: "You need to be signed in to access premium features"
+        });
+        navigate("/auth");
+        return;
+      }
+
+      // Create Stripe checkout session
+      const { data, error } = await supabase.functions.invoke('create-checkout');
+
+      if (error) throw error;
+
+      if (data?.url) {
+        // Open Stripe checkout in new tab
+        window.open(data.url, '_blank');
+        toast.success("Opening checkout...", {
+          description: "Complete your purchase to unlock premium features"
+        });
+      } else {
+        throw new Error("No checkout URL received");
+      }
+    } catch (error: any) {
+      console.error("Premium upgrade error:", error);
+      toast.error("Failed to start checkout", {
+        description: error.message || "Please try again later"
+      });
+    } finally {
+      setPremiumLoading(false);
+    }
+  };
 
   if (!scan) {
     return (
@@ -418,8 +459,12 @@ const Results = () => {
                   Get unlimited scans, personalized product recommendations, and priority support
                 </p>
               </div>
-              <Button className="bg-gradient-to-r from-primary to-secondary text-white">
-                Learn More
+              <Button 
+                className="bg-gradient-to-r from-primary to-secondary text-white"
+                onClick={handlePremiumUpgrade}
+                disabled={premiumLoading}
+              >
+                {premiumLoading ? "Loading..." : "Learn More"}
               </Button>
             </div>
           </Card>
