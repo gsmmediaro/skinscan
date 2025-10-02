@@ -46,27 +46,9 @@ const Scan = () => {
 
     if (!context) return;
 
-    // --- START OF NEW RESIZING LOGIC ---
-    const maxWidth = 640; // Set the maximum width for faster processing
-    const videoWidth = video.videoWidth;
-    const videoHeight = video.videoHeight;
-
-    // Calculate the new dimensions to maintain the aspect ratio
-    const aspectRatio = videoHeight / videoWidth;
-    let finalWidth = videoWidth;
-    let finalHeight = videoHeight;
-
-    if (finalWidth > maxWidth) {
-      finalWidth = maxWidth;
-      finalHeight = finalWidth * aspectRatio;
-    }
-
-    canvas.width = finalWidth;
-    canvas.height = finalHeight;
-
-    // Draw the video frame onto the canvas at the new, smaller size
-    context.drawImage(video, 0, 0, finalWidth, finalHeight);
-    // --- END OF NEW RESIZING LOGIC ---
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     const imageData = canvas.toDataURL("image/jpeg", 0.8);
     setCapturedImage(imageData);
