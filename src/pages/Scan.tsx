@@ -59,7 +59,7 @@ const Scan = () => {
         stopCamera();
         toast.success("Photo captured! Ready to analyze.");
       }
-    }, "image/jpeg", 0.8);
+    }, "image/jpeg", 0.7);
   };
 
   const retake = () => {
@@ -79,20 +79,40 @@ const Scan = () => {
     toast.info("Analyzing your skin...", { description: "This may take a few seconds" });
 
     try {
-      // Send binary image to webhook
-      const webhookResponse = await fetch("https://shadow424.app.n8n.cloud/webhook/skin-scan-ai", {
-        method: "POST",
+      // Call backend function instead of n8n directly
+      const formData = new FormData();
+      formData.append('image', imageBlob, 'selfie.jpg');
+
+      const backendUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze`;
+      console.log('Calling backend function...');
+      
+      const webhookResponse = await fetch(backendUrl, {
+        method: 'POST',
         headers: {
-          "Content-Type": "image/jpeg",
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: imageBlob,
+        body: formData,
       });
 
+      console.log('Response status:', webhookResponse.status);
+      console.log('Response content-type:', webhookResponse.headers.get('content-type'));
+
       if (!webhookResponse.ok) {
-        throw new Error("Webhook request failed");
+        const errorText = await webhookResponse.text();
+        console.error('Backend error:', errorText);
+        throw new Error(`Analysis failed (${webhookResponse.status}): ${errorText.substring(0, 100)}`);
       }
 
-      const webhookData = await webhookResponse.json();
+      const responseText = await webhookResponse.text();
+      console.log('Response (first 200 chars):', responseText.substring(0, 200));
+
+      let webhookData;
+      try {
+        webhookData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse response as JSON:', parseError);
+        throw new Error('Invalid response format from server');
+      }
 
       // Validate response structure - handle both array and object formats
       let apiAnalysis;
