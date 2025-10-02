@@ -6,34 +6,36 @@ import { SkinAnalysis } from "@/lib/mockAI";
 import { PreCaptureInstructions } from "@/components/PreCaptureInstructions";
 import { CameraCapture } from "@/components/CameraCapture";
 import { ReviewCapture } from "@/components/ReviewCapture";
-import { Sparkles, Zap } from "lucide-react";
+import { Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 type ScanStage = "instructions" | "camera" | "review" | "analyzing";
 
 const Scan = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user, loading: authLoading } = useAuth();
   const [stage, setStage] = useState<ScanStage>("instructions");
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string>("");
   const [imageBlob, setImageBlob] = useState<Blob | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
 
-  // Check authentication on mount
+  // Check authentication after auth context loads
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("Please sign in to use SkinScan", {
-          description: "You'll be redirected to the login page"
-        });
-        setTimeout(() => navigate("/auth"), 2000);
-      }
-    };
-    checkAuth();
-  }, [navigate]);
+    if (authLoading) return; // Wait for auth to load
+    
+    console.log('[Scan] Auth check - User:', user?.email || 'Not signed in');
+    
+    if (!user) {
+      toast.error("Please sign in to use SkinScan", {
+        description: "You'll be redirected to the login page"
+      });
+      setTimeout(() => navigate("/auth"), 2000);
+    }
+  }, [user, authLoading, navigate]);
 
   // Check for successful payment
   useEffect(() => {
@@ -284,6 +286,18 @@ const Scan = () => {
       }
     };
   }, []);
+
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-12 h-12 text-primary mx-auto animate-spin" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

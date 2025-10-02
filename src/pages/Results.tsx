@@ -5,16 +5,20 @@ import { Card } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { CircularProgress } from "@/components/CircularProgress";
 import { MetricDetailModal } from "@/components/MetricDetailModal";
-import { CheckCircle, Target, TrendingUp, TrendingDown, FileText, Download } from "lucide-react";
+import { CheckCircle, Target, TrendingUp, TrendingDown, Loader2, AlertCircle, FileText, Download } from "lucide-react";
 import { getScanById } from "@/lib/storage";
 import { SkinAnalysis } from "@/lib/mockAI";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Results = () => {
   const { scanId } = useParams();
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [scan, setScan] = useState<SkinAnalysis | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showHeatMap, setShowHeatMap] = useState(true);
   const [premiumLoading, setPremiumLoading] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<{
@@ -30,21 +34,47 @@ const Results = () => {
       return;
     }
 
-    const loadScan = async () => {
-      const scanData = await getScanById(scanId);
-      if (!scanData) {
-        toast.error("Scan not found", {
-          description: "Please sign in to view your scans"
-        });
-        setTimeout(() => navigate("/auth"), 2000);
-        return;
-      }
+    if (authLoading) return; // Wait for auth to load
 
-      setScan(scanData);
+    const loadScan = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('[Results] Loading scan:', scanId, 'User:', user?.email || 'Not signed in');
+        
+        const scanData = await getScanById(scanId);
+        
+        if (!scanData) {
+          if (!user) {
+            setError("not_authenticated");
+            toast.error("Please sign in to view your scans", {
+              description: "You'll be redirected to the login page"
+            });
+            setTimeout(() => navigate("/auth"), 2000);
+          } else {
+            setError("not_found");
+            toast.error("Scan not found", {
+              description: "This scan doesn't exist or you don't have access to it"
+            });
+          }
+          return;
+        }
+
+        setScan(scanData);
+      } catch (err) {
+        console.error('[Results] Error loading scan:', err);
+        setError("unknown");
+        toast.error("Failed to load scan", {
+          description: "Please try refreshing the page"
+        });
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadScan();
-  }, [scanId, navigate]);
+  }, [scanId, user, authLoading, navigate]);
 
   const handlePremiumUpgrade = async () => {
     try {
@@ -84,6 +114,53 @@ const Results = () => {
       setPremiumLoading(false);
     }
   };
+
+  // Loading state
+  if (loading || authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-12 h-12 text-primary mx-auto animate-spin" />
+          <p className="text-muted-foreground">Loading your results...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="p-8 max-w-md text-center space-y-4">
+          <AlertCircle className="w-16 h-16 text-danger mx-auto" />
+          <h2 className="text-2xl font-bold">
+            {error === "not_authenticated" && "Sign In Required"}
+            {error === "not_found" && "Scan Not Found"}
+            {error === "unknown" && "Something Went Wrong"}
+          </h2>
+          <p className="text-muted-foreground">
+            {error === "not_authenticated" && "Please sign in to view your scan results"}
+            {error === "not_found" && "This scan doesn't exist or you don't have access to it"}
+            {error === "unknown" && "We couldn't load your scan. Please try again"}
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Button variant="outline" onClick={() => navigate("/")}>
+              Go Home
+            </Button>
+            {error === "not_authenticated" ? (
+              <Button onClick={() => navigate("/auth")}>
+                Sign In
+              </Button>
+            ) : (
+              <Button onClick={() => window.location.reload()}>
+                Try Again
+              </Button>
+            )}
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   if (!scan) {
     return (
