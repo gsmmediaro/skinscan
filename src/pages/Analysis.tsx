@@ -117,25 +117,48 @@ const Analysis = () => {
           </section>
         )}
 
-        {/* Metrics Breakdown */}
+        {/* Skin Concerns Section */}
         <section className="space-y-6">
-          <h2 className="text-3xl font-bold text-center">Detailed Metrics</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Object.entries(scan.metrics).map(([key, metric], index) => (
-              <div
-                key={key}
-                className="animate-fade-in"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <MetricCard
-                  title={key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1').trim()}
-                  score={metric.score}
-                  severity={metric.severity}
-                  description={metric.description}
-                  icon={metricIcons[key as keyof typeof metricIcons]}
-                />
-              </div>
-            ))}
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl font-bold">Areas for Improvement</h2>
+            <p className="text-muted-foreground">Lower scores indicate concerns that need attention</p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {['acne', 'redness', 'fineLines', 'darkSpots'].map((key, index) => {
+              const metric = scan.metrics[key as keyof typeof scan.metrics];
+              return (
+                <div key={key} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
+                  <MetricCard
+                    title={key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1').trim()}
+                    score={metric.score}
+                    severity={metric.severity}
+                    description={metric.description}
+                    icon={metricIcons[key as keyof typeof metricIcons]}
+                    type="concern"
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Skin Strengths Section */}
+        <section className="space-y-6">
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl font-bold">Your Skin Strengths</h2>
+            <p className="text-muted-foreground">Higher scores show what's working well</p>
+          </div>
+          <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-6 max-w-md mx-auto">
+            <div className="animate-fade-in">
+              <MetricCard
+                title="Texture"
+                score={scan.metrics.texture.score}
+                severity={scan.metrics.texture.severity}
+                description={scan.metrics.texture.description}
+                icon={metricIcons.texture}
+                type="strength"
+              />
+            </div>
           </div>
         </section>
 

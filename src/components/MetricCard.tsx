@@ -9,9 +9,10 @@ interface MetricCardProps {
   severity: string;
   description: string;
   icon: LucideIcon;
+  type?: 'concern' | 'strength';
 }
 
-export const MetricCard = ({ title, score, severity, description, icon: Icon }: MetricCardProps) => {
+export const MetricCard = ({ title, score, severity, description, icon: Icon, type = 'concern' }: MetricCardProps) => {
   const [expanded, setExpanded] = useState(false);
 
   const getScoreColor = (score: number) => {
@@ -59,11 +60,18 @@ export const MetricCard = ({ title, score, severity, description, icon: Icon }: 
         <div className="text-sm text-muted-foreground space-y-2 mb-3 animate-fade-in">
           <p>{description}</p>
           <p className="mt-3 pt-3 border-t border-border">
-            {score >= 80 
-              ? "Your skin is showing excellent results in this area. Keep up your current routine!"
-              : score >= 60
-              ? "Good progress! Consider targeted treatments to further improve this metric."
-              : "This area could benefit from specialized care. Check our recommendations for targeted products."}
+            {type === 'concern' 
+              ? (score < 60 
+                  ? "This area needs attention. Check our recommendations for targeted treatments."
+                  : score < 80
+                  ? "Making progress! Consider targeted products to further reduce this concern."
+                  : "Great news! This area is looking healthy. Keep up your current routine!")
+              : (score >= 80 
+                  ? "Excellent! This is one of your skin's strengths. Maintain your current care."
+                  : score >= 60
+                  ? "Good foundation. There's room to enhance this strength even more."
+                  : "This area has potential. Focus on other concerns first, then build this up.")
+            }
           </p>
         </div>
       )}
