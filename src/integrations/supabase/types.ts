@@ -14,7 +14,144 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      invites: {
+        Row: {
+          created_at: string
+          id: string
+          invitee_email: string
+          inviter_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invitee_email: string
+          inviter_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invitee_email?: string
+          inviter_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invites_inviter_id_fkey"
+            columns: ["inviter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_tier: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_tier?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_tier?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      scans: {
+        Row: {
+          created_at: string
+          glow_score: number
+          id: string
+          image_url: string | null
+          metrics: Json
+          recommendations: Json | null
+          unlocked: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          glow_score: number
+          id?: string
+          image_url?: string | null
+          metrics: Json
+          recommendations?: Json | null
+          unlocked?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          glow_score?: number
+          id?: string
+          image_url?: string | null
+          metrics?: Json
+          recommendations?: Json | null
+          unlocked?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scans_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_stats: {
+        Row: {
+          created_at: string
+          free_scans_remaining: number
+          invites_completed: number
+          total_scans: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          free_scans_remaining?: number
+          invites_completed?: number
+          total_scans?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          free_scans_remaining?: number
+          invites_completed?: number
+          total_scans?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_stats_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
