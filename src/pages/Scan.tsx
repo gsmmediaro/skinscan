@@ -1,18 +1,20 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { saveScan, setCurrentScan } from "@/lib/storage";
 import { SkinAnalysis } from "@/lib/mockAI";
 import { PreCaptureInstructions } from "@/components/PreCaptureInstructions";
 import { CameraCapture } from "@/components/CameraCapture";
 import { ReviewCapture } from "@/components/ReviewCapture";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
 type ScanStage = "instructions" | "camera" | "review" | "analyzing";
 
 const Scan = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [stage, setStage] = useState<ScanStage>("instructions");
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string>("");
@@ -32,6 +34,18 @@ const Scan = () => {
     };
     checkAuth();
   }, [navigate]);
+
+  // Check for successful payment
+  useEffect(() => {
+    if (searchParams.get('success') === 'true') {
+      toast.success("🎉 Welcome to Premium!", {
+        description: "You now have unlimited scans. Ready to analyze your skin?",
+        duration: 5000,
+      });
+      // Clean up URL
+      window.history.replaceState({}, '', '/scan');
+    }
+  }, [searchParams]);
 
   const startCamera = async () => {
     try {
@@ -88,6 +102,37 @@ const Scan = () => {
     startCamera();
   };
 
+  const handleUpgrade = async () => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        toast.error("Please sign in to upgrade");
+        navigate("/auth");
+        return;
+      }
+
+      toast.info("Opening checkout...");
+
+      const { data, error } = await supabase.functions.invoke('create-checkout');
+      
+      if (error) throw error;
+      
+      if (data?.url) {
+        // Open in new tab so user doesn't lose their captured photo
+        window.open(data.url, '_blank');
+        toast.success("Checkout opened in new tab", {
+          description: "Complete payment to unlock unlimited scans"
+        });
+      }
+    } catch (error) {
+      console.error('Upgrade error:', error);
+      toast.error("Failed to start checkout", {
+        description: "Please try again or contact support"
+      });
+    }
+  };
+
 
   const handleAnalyze = async () => {
     if (!imageBlob) return;
@@ -134,8 +179,13 @@ const Scan = () => {
         }
         
         if (webhookResponse.status === 429) {
-          toast.error("Scan limit reached", {
-            description: "You've used all your free scans. Please upgrade to continue."
+          toast.error("🔒 Unlock Unlimited Scans!", {
+            description: "You've used your free scan. Upgrade to get unlimited analysis.",
+            duration: 10000,
+            action: {
+              label: "Upgrade Now",
+              onClick: handleUpgrade,
+            },
           });
           setStage("review");
           return;
