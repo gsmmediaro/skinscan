@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Camera, TrendingUp, Calendar } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Camera, TrendingUp, Calendar, Activity, User, Lightbulb, Bell } from "lucide-react";
 import { getScanHistory } from "@/lib/storage";
 import { SkinAnalysis } from "@/lib/mockAI";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { CircularProgress } from "@/components/CircularProgress";
+import { MetricSparklineCard } from "@/components/MetricSparklineCard";
+import { format, differenceInDays } from "date-fns";
 
 const Progress = () => {
   const navigate = useNavigate();
@@ -19,199 +23,385 @@ const Progress = () => {
     .slice()
     .reverse()
     .map((scan) => ({
-      date: new Date(scan.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      date: format(new Date(scan.timestamp), "MMM d"),
       score: scan.glowScore,
     }));
 
   const latestScore = scans[0]?.glowScore || 0;
   const previousScore = scans[1]?.glowScore || 0;
   const improvement = latestScore - previousScore;
-  const scanStreak = scans.length;
+  const totalScans = scans.length;
+  const daysActive = scans.length > 0 
+    ? differenceInDays(new Date(), new Date(scans[scans.length - 1].timestamp))
+    : 0;
+  const daysSinceLastScan = scans.length > 0
+    ? differenceInDays(new Date(), new Date(scans[0].timestamp))
+    : 0;
+
+  // Calculate streak (consecutive scans within 7 days)
+  let currentStreak = 0;
+  for (let i = 0; i < scans.length - 1; i++) {
+    const daysBetween = differenceInDays(
+      new Date(scans[i].timestamp),
+      new Date(scans[i + 1].timestamp)
+    );
+    if (daysBetween <= 7) {
+      currentStreak++;
+    } else {
+      break;
+    }
+  }
+  const streakWeeks = Math.floor((currentStreak + 1) / 1); // Simplified for demo
+
+  // Mock metric trends (in real app, would calculate from scan history)
+  const getMetricTrend = (metricName: keyof SkinAnalysis['metrics']) => {
+    return scans.slice(0, 6).reverse().map(scan => 
+      scan.metrics[metricName]?.score || 70
+    );
+  };
+
+  const getMetricDelta = (metricName: keyof SkinAnalysis['metrics']) => {
+    if (scans.length < 2) return 0;
+    const current = scans[0].metrics[metricName]?.score || 0;
+    const previous = scans[1].metrics[metricName]?.score || 0;
+    return current - previous;
+  };
+
+  const getScoreColorClass = (score: number) => {
+    if (score >= 86) return "bg-success text-success-foreground";
+    if (score >= 71) return "bg-warning text-warning-foreground";
+    if (score >= 41) return "bg-[hsl(25,95%,61%)] text-white";
+    return "bg-danger text-danger-foreground";
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      {/* Header */}
-      <header className="bg-white/80 dark:bg-card/80 backdrop-blur-sm border-b sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <button
-            onClick={() => navigate("/")}
-            className="text-2xl font-bold bg-gradient-glow bg-clip-text text-transparent"
-          >
-            SkinScan
-          </button>
-          <Button onClick={() => navigate("/scan")} className="bg-gradient-glow">
-            <Camera className="mr-2 h-4 w-4" />
-            New Scan
-          </Button>
+    <div className="min-h-screen bg-background">
+      {/* Sticky Navigation Header */}
+      <header className="sticky top-0 z-50 bg-card border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-8">
+              <button
+                onClick={() => navigate("/")}
+                className="text-2xl font-bold text-primary"
+              >
+                SkinScan
+              </button>
+              <nav className="hidden md:flex items-center gap-6">
+                <button 
+                  onClick={() => navigate("/progress")}
+                  className="text-sm font-medium text-primary border-b-2 border-primary pb-1"
+                >
+                  Dashboard
+                </button>
+                <button 
+                  onClick={() => navigate("/scan")}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Scans
+                </button>
+                <button 
+                  onClick={() => navigate("/routine")}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Routine
+                </button>
+              </nav>
+            </div>
+            <div className="flex items-center gap-4">
+              <Button onClick={() => navigate("/scan")} className="bg-primary hover:bg-primary/90">
+                <Camera className="mr-2 h-4 w-4" />
+                New Scan
+              </Button>
+              <div className="relative">
+                <User className="w-8 h-8 text-muted-foreground" />
+                {streakWeeks > 0 && (
+                  <div className="absolute -top-1 -right-1 bg-success text-success-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                    {streakWeeks}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-12 space-y-12">
-        {/* Stats Overview */}
-        <section className="grid sm:grid-cols-3 gap-6">
-          <div className="bg-gradient-card rounded-2xl p-6 shadow-card text-center">
-            <div className="text-4xl font-bold text-primary mb-2">{latestScore}</div>
-            <div className="text-sm text-muted-foreground">Current Glow Score</div>
-            {improvement !== 0 && (
-              <div className={`text-sm font-medium mt-2 ${improvement > 0 ? "text-success" : "text-warning"}`}>
-                {improvement > 0 ? "↑" : "↓"} {Math.abs(improvement)} from last scan
-              </div>
-            )}
-          </div>
-
-          <div className="bg-gradient-card rounded-2xl p-6 shadow-card text-center">
-            <div className="text-4xl font-bold text-secondary mb-2">{scanStreak}</div>
-            <div className="text-sm text-muted-foreground">Total Scans</div>
-            {scanStreak >= 7 && (
-              <div className="text-sm font-medium mt-2 text-warning">
-                🔥 {scanStreak}-scan streak!
-              </div>
-            )}
-          </div>
-
-          <div className="bg-gradient-card rounded-2xl p-6 shadow-card text-center">
-            <div className="text-4xl font-bold text-success mb-2">
-              {scans.length > 1 ? Math.round(((latestScore - scans[scans.length - 1].glowScore) / scans[scans.length - 1].glowScore) * 100) : 0}%
-            </div>
-            <div className="text-sm text-muted-foreground">Overall Improvement</div>
-            <div className="text-xs text-muted-foreground mt-1">Since first scan</div>
-          </div>
-        </section>
-
-        {/* Timeline Chart */}
-        {scans.length > 1 && (
-          <section className="bg-white dark:bg-card rounded-3xl p-8 shadow-card">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold flex items-center gap-2">
-                <TrendingUp className="w-6 h-6 text-primary" />
-                Glow Score Timeline
-              </h2>
-              <div className="text-sm text-muted-foreground">Last {scans.length} scans</div>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis 
-                  dataKey="date" 
-                  className="text-xs"
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+      <main className="container mx-auto px-4 py-8 space-y-12">
+        {scans.length === 0 ? (
+          <Card className="p-12 text-center">
+            <Camera className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <CardTitle className="mb-2">No scans yet</CardTitle>
+            <CardDescription className="mb-6">
+              Take your first scan to start tracking your skin health journey
+            </CardDescription>
+            <Button onClick={() => navigate("/scan")} className="bg-primary">
+              <Camera className="mr-2 h-4 w-4" />
+              Take First Scan
+            </Button>
+          </Card>
+        ) : (
+          <>
+            {/* Hero Stats Section */}
+            <section className="grid md:grid-cols-4 gap-6">
+              <Card className="md:col-span-2 p-8 flex items-center justify-center">
+                <CircularProgress
+                  score={latestScore}
+                  delta={improvement}
+                  subtext={`Last scanned ${daysSinceLastScan} ${daysSinceLastScan === 1 ? 'day' : 'days'} ago`}
                 />
-                <YAxis 
-                  domain={[0, 100]} 
-                  className="text-xs"
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '0.5rem',
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="score" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={3}
-                  dot={{ fill: 'hsl(var(--primary))', r: 6 }}
-                  activeDot={{ r: 8 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </section>
-        )}
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardDescription>Total Scans</CardDescription>
+                  <CardTitle className="text-4xl">{totalScans}</CardTitle>
+                </CardHeader>
+              </Card>
 
-        {/* Scan History Grid */}
-        <section className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-primary" />
-              Scan History
-            </h2>
-          </div>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardDescription>Days Active</CardDescription>
+                  <CardTitle className="text-4xl">{daysActive}</CardTitle>
+                </CardHeader>
+              </Card>
 
-          {scans.length === 0 ? (
-            <div className="bg-card rounded-2xl p-12 text-center border border-dashed">
-              <Camera className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-bold mb-2">No scans yet</h3>
-              <p className="text-muted-foreground mb-6">
-                Take your first scan to start tracking your skin health journey
-              </p>
-              <Button onClick={() => navigate("/scan")} className="bg-gradient-glow">
-                <Camera className="mr-2 h-4 w-4" />
-                Take First Scan
-              </Button>
-            </div>
-          ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {scans.map((scan) => (
-                <div
-                  key={scan.id}
-                  onClick={() => navigate(scan.unlocked ? `/analysis/${scan.id}` : `/results/${scan.id}`)}
-                  className="bg-gradient-card rounded-2xl overflow-hidden shadow-card hover:shadow-glow transition-all duration-300 cursor-pointer group"
-                >
-                  {scan.imageData && (
-                    <div className="relative aspect-video overflow-hidden">
-                      <img
-                        src={scan.imageData}
-                        alt="Scan"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute top-3 right-3">
-                        <div className="bg-background/90 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-bold">
-                          {scan.glowScore}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(scan.timestamp).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </div>
-                      {!scan.unlocked && (
-                        <div className="text-xs bg-warning/10 text-warning px-2 py-1 rounded-full font-medium">
-                          Locked
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-muted-foreground text-sm">Glow Score</div>
-                        <div className="text-2xl font-bold text-foreground">{scan.glowScore}</div>
-                      </div>
-                      <Button variant="outline" size="sm" className="group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                        View →
-                      </Button>
+              <Card className="md:col-span-2">
+                <CardHeader className="pb-3">
+                  <CardDescription>Current Streak</CardDescription>
+                  <CardTitle className="text-4xl">{streakWeeks} {streakWeeks === 1 ? 'week' : 'weeks'}</CardTitle>
+                </CardHeader>
+              </Card>
+            </section>
+
+            {/* Progress Timeline */}
+            {scans.length > 1 && (
+              <section>
+                <Card className="p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-2xl font-bold flex items-center gap-2">
+                        <Activity className="w-6 h-6 text-primary" />
+                        Your Skin Health Journey
+                      </h2>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Track your progress over time
+                      </p>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+                  <ResponsiveContainer width="100%" height={350}>
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        style={{ fontSize: '12px' }}
+                      />
+                      <YAxis 
+                        domain={[0, 100]} 
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        style={{ fontSize: '12px' }}
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="score" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={3}
+                        dot={{ fill: 'hsl(var(--primary))', r: 5 }}
+                        activeDot={{ r: 7 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </Card>
+              </section>
+            )}
 
-        {/* Weekly Scan Reminder */}
-        {scans.length > 0 && (
-          <section className="bg-gradient-glow rounded-3xl p-8 text-center shadow-glow">
-            <h2 className="text-2xl font-bold text-white mb-4">Keep Your Progress Going!</h2>
-            <p className="text-white/90 mb-6">
-              Take weekly scans to track your improvement and see how your routine is working
-            </p>
-            <Button
-              onClick={() => navigate("/scan")}
-              size="lg"
-              className="bg-white text-primary hover:bg-white/90"
-            >
-              <Camera className="mr-2 h-5 w-5" />
-              Take Weekly Scan
-            </Button>
-          </section>
+            {/* Metric Breakdown */}
+            {scans.length > 0 && (
+              <section>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold">Metric Breakdown</h2>
+                  <p className="text-sm text-muted-foreground">Individual metrics and their 30-day trends</p>
+                </div>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+                  <MetricSparklineCard
+                    title="Acne"
+                    currentScore={scans[0].metrics.acne?.score || 0}
+                    trend={getMetricTrend('acne')}
+                    delta={getMetricDelta('acne')}
+                    onClick={() => navigate(`/analysis/${scans[0].id}`)}
+                  />
+                  <MetricSparklineCard
+                    title="Redness"
+                    currentScore={scans[0].metrics.redness?.score || 0}
+                    trend={getMetricTrend('redness')}
+                    delta={getMetricDelta('redness')}
+                    onClick={() => navigate(`/analysis/${scans[0].id}`)}
+                  />
+                  <MetricSparklineCard
+                    title="Texture"
+                    currentScore={scans[0].metrics.texture?.score || 0}
+                    trend={getMetricTrend('texture')}
+                    delta={getMetricDelta('texture')}
+                    onClick={() => navigate(`/analysis/${scans[0].id}`)}
+                  />
+                  <MetricSparklineCard
+                    title="Fine Lines"
+                    currentScore={scans[0].metrics.fineLines?.score || 0}
+                    trend={getMetricTrend('fineLines')}
+                    delta={getMetricDelta('fineLines')}
+                    onClick={() => navigate(`/analysis/${scans[0].id}`)}
+                  />
+                  <MetricSparklineCard
+                    title="Dark Spots"
+                    currentScore={scans[0].metrics.darkSpots?.score || 0}
+                    trend={getMetricTrend('darkSpots')}
+                    delta={getMetricDelta('darkSpots')}
+                    onClick={() => navigate(`/analysis/${scans[0].id}`)}
+                  />
+                </div>
+              </section>
+            )}
+
+            {/* AI Insights */}
+            <section>
+              <Card className="bg-accent/5 border-accent/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lightbulb className="w-5 h-5 text-primary" />
+                    Insights & Recommendations
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 rounded-full bg-success mt-2" />
+                    <p className="text-sm">
+                      Your texture score improved 15% after introducing vitamin C serum
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 rounded-full bg-primary mt-2" />
+                    <p className="text-sm">
+                      You scan most consistently on Monday mornings
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 rounded-full bg-warning mt-2" />
+                    <p className="text-sm">
+                      Consider focusing on dark spots next for maximum impact
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* Recent Scans */}
+            <section>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold flex items-center gap-2">
+                    <Calendar className="w-6 h-6 text-primary" />
+                    Scan History
+                  </h2>
+                  <p className="text-sm text-muted-foreground">Your recent skin scans</p>
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {scans.map((scan, index) => {
+                  const prevScan = scans[index + 1];
+                  const delta = prevScan ? scan.glowScore - prevScan.glowScore : 0;
+                  
+                  return (
+                    <Card
+                      key={scan.id}
+                      className="cursor-pointer hover:shadow-lg transition-shadow overflow-hidden"
+                      onClick={() => navigate(scan.unlocked ? `/analysis/${scan.id}` : `/results/${scan.id}`)}
+                    >
+                      {scan.imageData && (
+                        <div className="relative aspect-video overflow-hidden bg-muted">
+                          <img
+                            src={scan.imageData}
+                            alt="Scan"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-3 right-3">
+                            <div className={`${getScoreColorClass(scan.glowScore)} rounded-full px-3 py-1 text-sm font-bold shadow-lg`}>
+                              {scan.glowScore}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <div className="text-sm font-medium">
+                              {format(new Date(scan.timestamp), "MMM d, yyyy")}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {format(new Date(scan.timestamp), "h:mm a")}
+                            </div>
+                          </div>
+                          {delta !== 0 && (
+                            <div className={`text-xs font-medium ${delta > 0 ? 'text-success' : 'text-danger'}`}>
+                              {delta > 0 ? '+' : ''}{delta}
+                            </div>
+                          )}
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full"
+                        >
+                          View Analysis →
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* CTA Section */}
+            <section>
+              <Card className="bg-card border">
+                <CardContent className="p-8 text-center">
+                  <h2 className="text-2xl font-bold mb-2">Ready for your next scan?</h2>
+                  <p className="text-muted-foreground mb-1">
+                    We recommend scanning every 3-5 days for best results
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    It's been {daysSinceLastScan} {daysSinceLastScan === 1 ? 'day' : 'days'} since your last scan
+                  </p>
+                  <div className="flex items-center justify-center gap-4">
+                    <Button 
+                      onClick={() => navigate("/scan")}
+                      size="lg"
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      <Camera className="mr-2 h-5 w-5" />
+                      Scan Now
+                    </Button>
+                    <Button 
+                      variant="ghost"
+                      size="lg"
+                      className="text-primary"
+                    >
+                      <Bell className="mr-2 h-4 w-4" />
+                      Adjust scan reminders
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+          </>
         )}
       </main>
     </div>
