@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          achievement_description: string | null
+          achievement_name: string
+          achievement_type: string
+          created_at: string | null
+          id: string
+          progress: number | null
+          unlocked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          achievement_description?: string | null
+          achievement_name: string
+          achievement_type: string
+          created_at?: string | null
+          id?: string
+          progress?: number | null
+          unlocked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          achievement_description?: string | null
+          achievement_name?: string
+          achievement_type?: string
+          created_at?: string | null
+          id?: string
+          progress?: number | null
+          unlocked_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       invites: {
         Row: {
           accepted_at: string | null
@@ -93,6 +126,7 @@ export type Database = {
           image_url: string | null
           metrics: Json
           recommendations: Json | null
+          scan_type: string | null
           unlocked: boolean
           user_id: string
         }
@@ -103,6 +137,7 @@ export type Database = {
           image_url?: string | null
           metrics: Json
           recommendations?: Json | null
+          scan_type?: string | null
           unlocked?: boolean
           user_id: string
         }
@@ -113,6 +148,7 @@ export type Database = {
           image_url?: string | null
           metrics?: Json
           recommendations?: Json | null
+          scan_type?: string | null
           unlocked?: boolean
           user_id?: string
         }
@@ -129,24 +165,36 @@ export type Database = {
       user_stats: {
         Row: {
           created_at: string
+          current_streak_days: number | null
           free_scans_remaining: number
           invites_completed: number
+          last_free_scan_date: string | null
+          longest_streak_days: number | null
+          total_achievements: number | null
           total_scans: number
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          current_streak_days?: number | null
           free_scans_remaining?: number
           invites_completed?: number
+          last_free_scan_date?: string | null
+          longest_streak_days?: number | null
+          total_achievements?: number | null
           total_scans?: number
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          current_streak_days?: number | null
           free_scans_remaining?: number
           invites_completed?: number
+          last_free_scan_date?: string | null
+          longest_streak_days?: number | null
+          total_achievements?: number | null
           total_scans?: number
           updated_at?: string
           user_id?: string
