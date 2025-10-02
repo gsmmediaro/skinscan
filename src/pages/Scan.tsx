@@ -73,28 +73,6 @@ const Scan = () => {
     startCamera();
   };
 
-  const handleFlipCamera = async () => {
-    const newFacingMode = facingMode === "user" ? "environment" : "user";
-    setFacingMode(newFacingMode);
-    
-    // Restart camera with new facing mode
-    if (stream) {
-      stopCamera();
-      try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: newFacingMode, 
-            width: { ideal: 1280 }, 
-            height: { ideal: 720 } 
-          },
-        });
-        setStream(mediaStream);
-      } catch (error) {
-        console.error("Camera flip error:", error);
-        toast.error("Unable to flip camera");
-      }
-    }
-  };
 
   const handleAnalyze = async () => {
     if (!imageBlob) return;
@@ -237,7 +215,6 @@ const Scan = () => {
           <CameraCapture
             stream={stream}
             onCapture={handleCapture}
-            onFlipCamera={handleFlipCamera}
           />
         )}
 
