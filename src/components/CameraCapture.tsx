@@ -18,36 +18,41 @@ export const CameraCapture = ({ stream, onCapture, onFlipCamera }: CameraCapture
   const [countdown, setCountdown] = useState<number | null>(null);
   const [showGrid, setShowGrid] = useState(false);
   const [flashEnabled, setFlashEnabled] = useState(false);
+  const [stabilityTimer, setStabilityTimer] = useState<number>(0);
 
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
       
-      // Simulate face detection and lighting analysis
+      // Simulate progressive face detection that stabilizes
+      let detectionPhase = 0;
+      
       const checkInterval = setInterval(() => {
         if (videoRef.current && videoRef.current.readyState >= 2) {
-          // Simulate detection logic
-          const detected = Math.random() > 0.3;
-          setFaceDetected(detected);
+          detectionPhase++;
           
-          if (detected) {
-            const positions: ("perfect" | "adjust" | "poor")[] = ["perfect", "adjust", "poor"];
-            const pos = positions[Math.floor(Math.random() * positions.length)];
-            setFacePosition(pos);
-            
-            const lighting: ("excellent" | "good" | "dark")[] = ["excellent", "good", "dark"];
-            const light = lighting[Math.floor(Math.random() * lighting.length)];
-            setLightingQuality(light);
-            
-            if (pos === "perfect" && light !== "dark") {
-              setFeedback("Perfect! Hold still...");
-            } else if (pos === "adjust") {
-              setFeedback("Almost there - center your face");
-            } else {
-              setFeedback("Move closer to the camera");
-            }
-          } else {
+          // Progressive detection: starts poor, then adjusts, then perfect, then stays stable
+          if (detectionPhase <= 2) {
+            // Initial phase: not detected or poor position
+            setFaceDetected(detectionPhase > 1);
+            setFacePosition("poor");
+            setLightingQuality("dark");
             setFeedback("Position your face in the oval");
+            setStabilityTimer(0);
+          } else if (detectionPhase <= 4) {
+            // Adjustment phase
+            setFaceDetected(true);
+            setFacePosition("adjust");
+            setLightingQuality("good");
+            setFeedback("Almost there - center your face");
+            setStabilityTimer(0);
+          } else {
+            // Perfect and stable phase - once reached, stay here
+            setFaceDetected(true);
+            setFacePosition("perfect");
+            setLightingQuality("excellent");
+            setFeedback("Perfect! Hold still...");
+            setStabilityTimer(prev => prev + 1);
           }
         }
       }, 1000);
@@ -127,7 +132,7 @@ export const CameraCapture = ({ stream, onCapture, onFlipCamera }: CameraCapture
     }
   };
 
-  const canCapture = faceDetected && facePosition === "perfect" && lightingQuality !== "dark";
+  const canCapture = faceDetected && facePosition === "perfect" && lightingQuality !== "dark" && stabilityTimer >= 2;
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
