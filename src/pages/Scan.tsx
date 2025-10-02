@@ -1,33 +1,43 @@
-import { useState, useRef, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Camera, RotateCcw, Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { saveScan, setCurrentScan } from "@/lib/storage";
 import { SkinAnalysis } from "@/lib/mockAI";
+import { PreCaptureInstructions } from "@/components/PreCaptureInstructions";
+import { CameraCapture } from "@/components/CameraCapture";
+import { ReviewCapture } from "@/components/ReviewCapture";
+import { Sparkles } from "lucide-react";
+
+type ScanStage = "instructions" | "camera" | "review" | "analyzing";
 
 const Scan = () => {
   const navigate = useNavigate();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [stage, setStage] = useState<ScanStage>("instructions");
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [captured, setCaptured] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string>("");
   const [imageBlob, setImageBlob] = useState<Blob | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
 
   const startCamera = async () => {
     try {
+      // Stop existing stream if any
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { 
+          facingMode, 
+          width: { ideal: 1280 }, 
+          height: { ideal: 720 } 
+        },
       });
       setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
+      setStage("camera");
     } catch (error) {
       console.error("Camera access error:", error);
       toast.error("Unable to access camera. Please check permissions.");
+      setStage("instructions");
     }
   };
 
@@ -38,53 +48,65 @@ const Scan = () => {
     }
   };
 
-  const capturePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext("2d");
-
-    if (!context) return;
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    canvas.toBlob((blob) => {
-      if (blob) {
-        setImageBlob(blob);
-        setCapturedImage(URL.createObjectURL(blob));
-        setCaptured(true);
-        stopCamera();
-        toast.success("Photo captured! Ready to analyze.");
-      }
-    }, "image/jpeg", 0.7);
+  const handleStartCapture = () => {
+    startCamera();
   };
 
-  const retake = () => {
+  const handleSkipInstructions = () => {
+    startCamera();
+  };
+
+  const handleCapture = (blob: Blob, imageUrl: string) => {
+    setImageBlob(blob);
+    setCapturedImage(imageUrl);
+    stopCamera();
+    setStage("review");
+    toast.success("Photo captured! Review and analyze when ready.");
+  };
+
+  const handleRetake = () => {
     if (capturedImage) {
       URL.revokeObjectURL(capturedImage);
     }
-    setCaptured(false);
     setCapturedImage("");
     setImageBlob(null);
     startCamera();
   };
 
-  const analyze = async () => {
+  const handleFlipCamera = async () => {
+    const newFacingMode = facingMode === "user" ? "environment" : "user";
+    setFacingMode(newFacingMode);
+    
+    // Restart camera with new facing mode
+    if (stream) {
+      stopCamera();
+      try {
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: newFacingMode, 
+            width: { ideal: 1280 }, 
+            height: { ideal: 720 } 
+          },
+        });
+        setStream(mediaStream);
+      } catch (error) {
+        console.error("Camera flip error:", error);
+        toast.error("Unable to flip camera");
+      }
+    }
+  };
+
+  const handleAnalyze = async () => {
     if (!imageBlob) return;
 
-    setAnalyzing(true);
+    setStage("analyzing");
     toast.info("Analyzing your skin...", { description: "This may take a few seconds" });
 
     try {
-      // Call backend function instead of n8n directly
       const formData = new FormData();
       formData.append('image', imageBlob, 'selfie.jpg');
 
       const backendUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze`;
-      console.log('Calling backend function...');
       
       const webhookResponse = await fetch(backendUrl, {
         method: 'POST',
@@ -94,19 +116,15 @@ const Scan = () => {
         body: formData,
       });
 
-      console.log('Response status:', webhookResponse.status);
-      console.log('Response content-type:', webhookResponse.headers.get('content-type'));
-
       if (!webhookResponse.ok) {
         const errorText = await webhookResponse.text();
         console.error('Backend error:', errorText);
-        throw new Error(`Analysis failed (${webhookResponse.status}): ${errorText.substring(0, 100)}`);
+        throw new Error(`Analysis failed (${webhookResponse.status})`);
       }
 
       const responseText = await webhookResponse.text();
-      console.log('Response (first 200 chars):', responseText.substring(0, 200));
-
       let webhookData;
+      
       try {
         webhookData = JSON.parse(responseText);
       } catch (parseError) {
@@ -114,26 +132,20 @@ const Scan = () => {
         throw new Error('Invalid response format from server');
       }
 
-      // Validate response structure - handle both array and object formats
       let apiAnalysis;
-
       if (Array.isArray(webhookData)) {
-        // Handle array format: [{ "analysis": {...} }]
         if (webhookData.length === 0 || !webhookData[0]?.analysis) {
           throw new Error('Invalid webhook response format');
         }
         apiAnalysis = webhookData[0].analysis;
       } else if (webhookData?.analysis) {
-        // Handle object format: { "analysis": {...} }
         apiAnalysis = webhookData.analysis;
       } else {
         throw new Error('Invalid webhook response format');
       }
 
-      // Transform webhook response to SkinAnalysis format
       const glowScore = Math.round(apiAnalysis.glowScore);
       
-      // Map webhook metrics to our app's metrics with severity
       const mapMetric = (score: number) => {
         const normalizedScore = Math.round(score);
         let severity: "low" | "medium" | "high";
@@ -152,7 +164,6 @@ const Scan = () => {
         darkSpots: { ...mapMetric(100 - apiAnalysis.evenness), description: "Pigmentation issues" },
       };
 
-      // Calculate strength and focus area
       const metricScores = Object.entries(metrics).map(([key, value]) => ({
         name: key,
         score: value.score,
@@ -180,13 +191,11 @@ const Scan = () => {
     } catch (error) {
       console.error("Analysis error:", error);
       toast.error("Analysis failed. Please try again.");
-      setAnalyzing(false);
+      setStage("review");
     }
   };
 
-  // Auto-start camera on mount
   useEffect(() => {
-    startCamera();
     return () => {
       stopCamera();
       if (capturedImage) {
@@ -196,140 +205,59 @@ const Scan = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-subtle flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="bg-white/80 dark:bg-card/80 backdrop-blur-sm border-b sticky top-0 z-10">
+      <header className="bg-white border-b sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <button
             onClick={() => navigate("/")}
-            className="text-2xl font-bold bg-gradient-glow bg-clip-text text-transparent"
+            className="text-2xl font-bold text-foreground"
           >
             SkinScan
           </button>
           <div className="text-sm text-muted-foreground">
-            Step 1 of 3: Capture
+            {stage === "instructions" && "Prepare"}
+            {stage === "camera" && "Step 1 of 3: Capture"}
+            {stage === "review" && "Step 2 of 3: Review"}
+            {stage === "analyzing" && "Step 3 of 3: Analyzing"}
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 container mx-auto px-4 py-8 flex flex-col items-center justify-center">
-        <div className="w-full max-w-2xl space-y-8">
-          {/* Instructions */}
-          {!captured && (
-            <div className="text-center space-y-4 animate-fade-in">
-              <h1 className="text-4xl font-bold">Position Your Face</h1>
-              <p className="text-lg text-muted-foreground">
-                Center your face in the circle and make sure you're in good lighting
-              </p>
-              <div className="flex items-center justify-center gap-6 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-success animate-glow-pulse" />
-                  <span className="text-muted-foreground">Good lighting</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-warning" />
-                  <span className="text-muted-foreground">Face centered</span>
-                </div>
-              </div>
-            </div>
-          )}
+      <main className="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
+        {stage === "instructions" && (
+          <PreCaptureInstructions 
+            onStart={handleStartCapture}
+            onSkip={handleSkipInstructions}
+          />
+        )}
 
-          {/* Camera/Preview */}
-          <div className="relative aspect-[4/3] bg-black rounded-3xl overflow-hidden shadow-glow">
-            {!captured ? (
-              <>
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                />
-                {/* Face guide overlay */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-72 h-72 rounded-full border-4 border-primary/50 border-dashed animate-glow-pulse" />
-                </div>
-              </>
-            ) : (
-              <img
-                src={capturedImage}
-                alt="Captured selfie"
-                className="w-full h-full object-cover"
-              />
-            )}
+        {stage === "camera" && (
+          <CameraCapture
+            stream={stream}
+            onCapture={handleCapture}
+            onFlipCamera={handleFlipCamera}
+          />
+        )}
 
-            {analyzing && (
-              <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-4 animate-fade-in">
-                <Sparkles className="w-16 h-16 text-primary animate-glow-pulse" />
-                <div className="text-white text-xl font-semibold">Analyzing Your Skin...</div>
-                <div className="text-white/70 text-sm">This won't take long</div>
-              </div>
-            )}
+        {stage === "review" && (
+          <ReviewCapture
+            imageUrl={capturedImage}
+            onRetake={handleRetake}
+            onAnalyze={handleAnalyze}
+            analyzing={false}
+          />
+        )}
+
+        {stage === "analyzing" && (
+          <div className="text-center space-y-6 animate-fade-in">
+            <Sparkles className="w-24 h-24 text-success mx-auto animate-glow-pulse" />
+            <h2 className="text-3xl font-bold">Analyzing Your Skin...</h2>
+            <p className="text-lg text-muted-foreground">Our AI is examining 12 skin health factors</p>
+            <div className="text-sm text-muted-foreground">This won't take long</div>
           </div>
-
-          <canvas ref={canvasRef} className="hidden" />
-
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            {!captured ? (
-              <Button
-                size="lg"
-                onClick={capturePhoto}
-                disabled={!stream}
-                className="bg-gradient-glow hover:opacity-90 transition-opacity text-lg px-12 shadow-glow"
-              >
-                <Camera className="mr-2 h-5 w-5" />
-                Capture Photo
-              </Button>
-            ) : (
-              <>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={retake}
-                  disabled={analyzing}
-                  className="text-lg px-8"
-                >
-                  <RotateCcw className="mr-2 h-5 w-5" />
-                  Retake
-                </Button>
-                <Button
-                  size="lg"
-                  onClick={analyze}
-                  disabled={analyzing}
-                  className="bg-gradient-glow hover:opacity-90 transition-opacity text-lg px-12 shadow-glow"
-                >
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  {analyzing ? "Analyzing..." : "Analyze Skin"}
-                </Button>
-              </>
-            )}
-          </div>
-
-          {/* Tips */}
-          <div className="bg-accent/50 rounded-2xl p-6 space-y-3">
-            <h3 className="font-semibold text-foreground">Tips for best results:</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <span className="text-primary">•</span>
-                Use natural lighting or bright indoor lighting
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary">•</span>
-                Remove makeup for most accurate analysis
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary">•</span>
-                Keep your face centered and look directly at the camera
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary">•</span>
-                Avoid shadows on your face
-              </li>
-            </ul>
-          </div>
-        </div>
+        )}
       </main>
     </div>
   );
