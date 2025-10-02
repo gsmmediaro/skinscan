@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Share2, Mail, Twitter, Copy, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
+import { inviteEmailsSchema } from "@/lib/validation";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ShareModalProps {
   open: boolean;
@@ -43,22 +45,49 @@ export const ShareModal = ({ open, onClose, onUnlock, glowScore }: ShareModalPro
   };
 
   const handleInvite = async () => {
-    if (!emails.trim()) {
-      toast.error("Please enter at least one email address");
-      return;
-    }
+    try {
+      // Validate emails
+      const validation = inviteEmailsSchema.safeParse(emails);
+      if (!validation.success) {
+        toast.error(validation.error.errors[0].message);
+        return;
+      }
 
-    const emailList = emails.split(",").map(e => e.trim()).filter(e => e);
-    if (emailList.length < 3) {
-      toast.error("Please invite at least 3 friends");
-      return;
-    }
+      const emailList = validation.data;
+      setLoading(true);
 
-    setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    toast.success(`Invitations sent to ${emailList.length} friends!`);
-    triggerUnlock();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("You must be logged in to send invites");
+        setLoading(false);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", user.id)
+        .single();
+
+      const inviterName = profile?.email?.split("@")[0] || "A friend";
+
+      const { error } = await supabase.functions.invoke("send-invite", {
+        body: {
+          emails: emailList,
+          inviterName,
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success(`Invitations sent to ${emailList.length} friends!`);
+      triggerUnlock();
+    } catch (error: any) {
+      console.error("Error sending invites:", error);
+      toast.error("Failed to send invites. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const triggerUnlock = () => {

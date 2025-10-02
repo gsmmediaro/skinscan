@@ -15,8 +15,11 @@ const Progress = () => {
   const [scans, setScans] = useState<SkinAnalysis[]>([]);
 
   useEffect(() => {
-    const history = getScanHistory();
-    setScans(history);
+    const loadHistory = async () => {
+      const history = await getScanHistory();
+      setScans(history);
+    };
+    loadHistory();
   }, []);
 
   const chartData = scans

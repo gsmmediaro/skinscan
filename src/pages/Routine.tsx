@@ -36,14 +36,18 @@ const Routine = () => {
       return;
     }
 
-    const scanData = getScanById(scanId);
-    if (!scanData) {
-      toast.error("Scan not found");
-      navigate("/");
-      return;
-    }
+    const loadScan = async () => {
+      const scanData = await getScanById(scanId);
+      if (!scanData) {
+        toast.error("Scan not found");
+        navigate("/");
+        return;
+      }
 
-    setScan(scanData);
+      setScan(scanData);
+    };
+
+    loadScan();
   }, [scanId, navigate]);
 
   if (!scan) {

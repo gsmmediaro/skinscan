@@ -46,21 +46,30 @@ serve(async (req) => {
 
     const appUrl = `${req.headers.get("origin") || "https://tqnlhqtruatpaplsrtso.lovable.app"}`;
     
-    // Create invite records
+    // Create invite records with tokens
     const invitePromises = emails.map(async (email) => {
-      const { error } = await supabase
+      // Insert invite and get the generated token
+      const { data: invite, error } = await supabase
         .from("invites")
         .insert({
           inviter_id: user.id,
           invitee_email: email.trim(),
           status: "pending",
-        });
+        })
+        .select("invite_token")
+        .single();
 
       if (error && !error.message.includes("duplicate")) {
         console.error("Error creating invite:", error);
+        return null;
       }
 
-      // Send invite email
+      if (!invite) {
+        console.error("No invite token generated for:", email);
+        return null;
+      }
+
+      // Send invite email with secure token
       return resend.emails.send({
         from: "SkinScan <onboarding@resend.dev>",
         to: [email.trim()],
@@ -70,7 +79,7 @@ serve(async (req) => {
             <h1 style="color: #333;">You're Invited to SkinScan!</h1>
             <p>${inviterName} wants you to try SkinScan - get personalized skincare insights with AI.</p>
             <p style="margin: 30px 0;">
-              <a href="${appUrl}/?ref=${user.id}" 
+              <a href="${appUrl}/?invite=${invite.invite_token}" 
                  style="background: #84cc16; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
                 Get Your Free Skin Analysis
               </a>

@@ -16,22 +16,31 @@ export type Database = {
     Tables: {
       invites: {
         Row: {
+          accepted_at: string | null
+          accepted_by: string | null
           created_at: string
           id: string
+          invite_token: string
           invitee_email: string
           inviter_id: string
           status: string
         }
         Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
           created_at?: string
           id?: string
+          invite_token?: string
           invitee_email: string
           inviter_id: string
           status?: string
         }
         Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
           created_at?: string
           id?: string
+          invite_token?: string
           invitee_email?: string
           inviter_id?: string
           status?: string

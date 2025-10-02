@@ -1,9 +1,12 @@
 project_id = "tqnlhqtruatpaplsrtso"
 
 [functions.analyze]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-invite]
+verify_jwt = true
+
+[functions.process-referral]
 verify_jwt = true
 
 [functions.create-checkout]

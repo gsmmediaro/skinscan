@@ -19,20 +19,24 @@ const Analysis = () => {
       return;
     }
 
-    const scanData = getScanById(scanId);
-    if (!scanData) {
-      toast.error("Scan not found");
-      navigate("/");
-      return;
-    }
+    const loadScan = async () => {
+      const scanData = await getScanById(scanId);
+      if (!scanData) {
+        toast.error("Scan not found");
+        navigate("/");
+        return;
+      }
 
-    if (!scanData.unlocked) {
-      toast.error("Please unlock this scan first");
-      navigate(`/results/${scanId}`);
-      return;
-    }
+      if (!scanData.unlocked) {
+        toast.error("Please unlock this scan first");
+        navigate(`/results/${scanId}`);
+        return;
+      }
 
-    setScan(scanData);
+      setScan(scanData);
+    };
+
+    loadScan();
   }, [scanId, navigate]);
 
   if (!scan) {
