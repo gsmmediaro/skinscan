@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,10 +14,14 @@ serve(async (req) => {
 
   try {
     console.log('Analyze function called');
+    console.log('Request method:', req.method);
+    console.log('Content-Type:', req.headers.get('content-type'));
     
     // Get authentication token
+    console.log('Checking authentication...');
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('No authorization header found');
       return new Response(
         JSON.stringify({ error: 'Authentication required' }), 
         { 
@@ -27,15 +32,41 @@ serve(async (req) => {
     }
 
     // Create Supabase client for auth check
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.38.4');
+    console.log('Creating Supabase client...');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing Supabase environment variables');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }), 
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    console.log('Supabase client created successfully');
 
+    console.log('Verifying user token...');
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
 
-    if (userError || !user) {
+    if (userError) {
+      console.error('User verification error:', userError.message);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized', details: userError.message }), 
+        { 
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    if (!user) {
+      console.error('No user found from token');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }), 
         { 
@@ -48,13 +79,19 @@ serve(async (req) => {
     console.log('User authenticated:', user.id);
 
     // Check subscription tier and scan limits
-    const { data: profile } = await supabase
+    console.log('Checking user subscription...');
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('subscription_tier')
       .eq('id', user.id)
       .single();
 
+    if (profileError) {
+      console.error('Error fetching profile:', profileError.message);
+    }
+
     const isPremium = profile?.subscription_tier === 'premium' || profile?.subscription_tier === 'pro';
+    console.log('User subscription tier:', profile?.subscription_tier || 'free');
 
     // Premium users have unlimited scans, free users need to check limits
     if (!isPremium) {
@@ -96,6 +133,7 @@ serve(async (req) => {
     }
     
     // Get the image from the request
+    console.log('Processing image from request...');
     const contentType = req.headers.get('content-type') || '';
     let imageBlob: Blob;
 
