@@ -131,11 +131,11 @@ const Scan = () => {
       }
 
       // Transform webhook response to SkinAnalysis format
-      const glowScore = Math.round(apiAnalysis.glowScore / 10);
+      const glowScore = Math.round(apiAnalysis.glowScore);
       
       // Map webhook metrics to our app's metrics with severity
       const mapMetric = (score: number) => {
-        const normalizedScore = Math.round(score / 10);
+        const normalizedScore = Math.round(score);
         let severity: "low" | "medium" | "high";
         if (score >= 70) severity = "low";
         else if (score >= 40) severity = "medium";
