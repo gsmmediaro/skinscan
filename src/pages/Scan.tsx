@@ -81,7 +81,7 @@ const Scan = () => {
 
     try {
       // Send binary image to webhook
-      const webhookResponse = await fetch("https://shadow424.app.n8n.cloud/webhook-test/skin-scan-ai", {
+      const webhookResponse = await fetch("https://shadow424.app.n8n.cloud/webhook/skin-scan-ai", {
         method: "POST",
         headers: {
           "Content-Type": "image/jpeg",
