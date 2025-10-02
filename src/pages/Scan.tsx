@@ -1,10 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Camera, RotateCcw, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { analyzeSkin } from "@/lib/mockAI";
 import { saveScan, setCurrentScan } from "@/lib/storage";
+import { SkinAnalysis } from "@/lib/mockAI";
 
 const Scan = () => {
   const navigate = useNavigate();
@@ -13,6 +13,7 @@ const Scan = () => {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [captured, setCaptured] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string>("");
+  const [imageBlob, setImageBlob] = useState<Blob | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
 
   const startCamera = async () => {
@@ -50,44 +51,100 @@ const Scan = () => {
     canvas.height = video.videoHeight;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const imageData = canvas.toDataURL("image/jpeg", 0.8);
-    setCapturedImage(imageData);
-    setCaptured(true);
-    stopCamera();
-    toast.success("Photo captured! Ready to analyze.");
+    canvas.toBlob((blob) => {
+      if (blob) {
+        setImageBlob(blob);
+        setCapturedImage(URL.createObjectURL(blob));
+        setCaptured(true);
+        stopCamera();
+        toast.success("Photo captured! Ready to analyze.");
+      }
+    }, "image/jpeg", 0.8);
   };
 
   const retake = () => {
+    if (capturedImage) {
+      URL.revokeObjectURL(capturedImage);
+    }
     setCaptured(false);
     setCapturedImage("");
+    setImageBlob(null);
     startCamera();
   };
 
   const analyze = async () => {
-    if (!capturedImage) return;
+    if (!imageBlob) return;
 
     setAnalyzing(true);
     toast.info("Analyzing your skin...", { description: "This may take a few seconds" });
 
     try {
-      // Send image to webhook
-      const webhookResponse = await fetch("https://shadow424.app.n8n.cloud/webhook-test/skin-scan-ai", {
+      // Send binary image to webhook
+      const webhookResponse = await fetch("https://shadow424.app.n8n.cloud/webhook/skin-scan-ai", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "image/jpeg",
         },
-        body: JSON.stringify({
-          image: capturedImage,
-          timestamp: new Date().toISOString(),
-        }),
+        body: imageBlob,
       });
 
       if (!webhookResponse.ok) {
         throw new Error("Webhook request failed");
       }
 
-      // Continue with mock analysis
-      const analysis = await analyzeSkin(capturedImage);
+      const webhookData = await webhookResponse.json();
+
+      // Validate response structure - expecting array with analysis object
+      if (!Array.isArray(webhookData) || webhookData.length === 0 || !webhookData[0]?.analysis) {
+        throw new Error('Invalid webhook response format');
+      }
+
+      const apiAnalysis = webhookData[0].analysis;
+
+      // Transform webhook response to SkinAnalysis format
+      const glowScore = Math.round(apiAnalysis.glowScore / 10);
+      
+      // Map webhook metrics to our app's metrics with severity
+      const mapMetric = (score: number) => {
+        const normalizedScore = Math.round(score / 10);
+        let severity: "low" | "medium" | "high";
+        if (score >= 70) severity = "low";
+        else if (score >= 40) severity = "medium";
+        else severity = "high";
+        
+        return { score: normalizedScore, severity };
+      };
+
+      const metrics = {
+        acne: { ...mapMetric(100 - apiAnalysis.evenness), description: "Blemishes and breakouts" },
+        redness: { ...mapMetric(100 - apiAnalysis.evenness), description: "Skin inflammation" },
+        texture: { ...mapMetric(apiAnalysis.texture), description: "Skin smoothness" },
+        fineLines: { ...mapMetric(100 - apiAnalysis.wrinkles), description: "Early signs of aging" },
+        darkSpots: { ...mapMetric(apiAnalysis.evenness), description: "Pigmentation issues" },
+      };
+
+      // Calculate strength and focus area
+      const metricScores = Object.entries(metrics).map(([key, value]) => ({
+        name: key,
+        score: value.score,
+      }));
+      const sortedMetrics = [...metricScores].sort((a, b) => b.score - a.score);
+      
+      const strength = sortedMetrics[0].name.charAt(0).toUpperCase() + sortedMetrics[0].name.slice(1);
+      const focusArea = sortedMetrics[sortedMetrics.length - 1].name.charAt(0).toUpperCase() + 
+                        sortedMetrics[sortedMetrics.length - 1].name.slice(1);
+
+      const analysis: SkinAnalysis = {
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        imageData: capturedImage,
+        glowScore,
+        strength,
+        focusArea,
+        metrics,
+        unlocked: false,
+      };
+
       saveScan(analysis);
       setCurrentScan(analysis);
       navigate(`/results/${analysis.id}`);
@@ -99,10 +156,15 @@ const Scan = () => {
   };
 
   // Auto-start camera on mount
-  useState(() => {
+  useEffect(() => {
     startCamera();
-    return () => stopCamera();
-  });
+    return () => {
+      stopCamera();
+      if (capturedImage) {
+        URL.revokeObjectURL(capturedImage);
+      }
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex flex-col">
