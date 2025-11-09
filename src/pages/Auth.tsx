@@ -21,11 +21,26 @@ const Auth = () => {
   const inviteToken = searchParams.get("invite");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkOnboardingStatus = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/");
+        // Check if user has completed onboarding
+        const { data: preferences } = await supabase
+          .from("user_preferences")
+          .select("id")
+          .eq("user_id", session.user.id)
+          .single();
+
+        // If onboarding is complete, go home; otherwise go to onboarding
+        if (preferences) {
+          navigate("/");
+        } else {
+          navigate("/onboarding");
+        }
       }
-    });
+    };
+
+    checkOnboardingStatus();
   }, [navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -45,8 +60,8 @@ const Auth = () => {
         return;
       }
 
-      const redirectUrl = `${window.location.origin}/`;
-      
+      const redirectUrl = `${window.location.origin}/onboarding`;
+
       const { error } = await supabase.auth.signUp({
         email: validation.data.email,
         password: validation.data.password,
