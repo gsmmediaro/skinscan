@@ -72,40 +72,60 @@ const Auth = () => {
 
       const redirectUrl = `${window.location.origin}/onboarding`;
 
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: validation.data.email,
         password: validation.data.password,
         options: {
-          emailRedirectTo: redirectUrl
+          emailRedirectTo: redirectUrl,
+          // Auto-confirm for development (remove in production)
+          data: {
+            email_confirm: false
+          }
         }
       });
 
       if (error) throw error;
 
-      // Process referral using secure edge function
-      if (inviteToken) {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
+      console.log('[Auth] Sign up response:', data);
+
+      // Check if email confirmation is required
+      if (data.user && !data.session) {
+        toast({
+          title: "Check your email!",
+          description: "We sent you a verification link. Click it to activate your account.",
+          duration: 10000,
+        });
+        return;
+      }
+
+      // If session exists, user is auto-confirmed
+      if (data.session) {
+        // Process referral using secure edge function
+        if (inviteToken) {
+          try {
             await supabase.functions.invoke("process-referral", {
               body: { inviteToken },
             });
+          } catch (refError) {
+            console.error("Error processing referral:", refError);
           }
-        } catch (refError) {
-          console.error("Error processing referral:", refError);
         }
-      }
 
-      toast({
-        title: "Account created!",
-        description: inviteToken 
-          ? "Check your email to verify. You and your friend will get bonus scans!"
-          : "Check your email to verify your account.",
-      });
+        toast({
+          title: "Account created!",
+          description: inviteToken
+            ? "You and your friend will get bonus scans!"
+            : "Welcome to SkinScan!",
+        });
+
+        // Navigate to onboarding
+        navigate("/onboarding");
+      }
     } catch (error: any) {
+      console.error('[Auth] Sign up error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to create account. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -173,18 +193,34 @@ const Auth = () => {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
+
+      console.log('[Auth] Starting Google sign in...');
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`,
+          redirectTo: `${window.location.origin}/onboarding`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Auth] Google OAuth error:', error);
+        throw error;
+      }
+
+      console.log('[Auth] Google OAuth initiated:', data);
+
+      // OAuth will redirect, so we don't need to do anything else
+      // Don't reset loading state as we're redirecting
     } catch (error: any) {
+      console.error('[Auth] Google sign in error:', error);
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Google Sign In Failed",
+        description: error.message || "Please check if Google OAuth is configured in Supabase.",
         variant: "destructive",
       });
       setLoading(false);
