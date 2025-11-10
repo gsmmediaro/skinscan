@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Supabase Connection Test</title>
+  <style>
+    body {
+      font-family: system-ui;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .result {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+      border: 2px solid #ddd;
+    }
+    .success { border-color: #22c55e; background: #f0fdf4; }
+    .error { border-color: #ef4444; background: #fef2f2; }
+    .info { border-color: #3b82f6; background: #eff6ff; }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover { background: #2563eb; }
+    pre {
+      background: #1f2937;
+      color: #f3f4f6;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Supabase Project Connection Test</h1>
+
+  <div class="result info">
+    <h3>Current Configuration:</h3>
+    <pre id="config">Loading...</pre>
+  </div>
+
+  <button onclick="testConnection()">Test Connection</button>
+
+  <div id="result"></div>
+
+  <script type="module">
+    // Read from .env
+    const SUPABASE_URL = "https://tqnlhqtruatpaplsrtso.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxbmxocXRydWF0cGFwbHNydHNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMTcxODAsImV4cCI6MjA3NDg5MzE4MH0.jKLQ4bJ1ucR93lpfqNEZHIsZL-XCO80ZzIJWGKPe0PY";
+
+    document.getElementById('config').textContent = `
+Project URL: ${SUPABASE_URL}
+Project ID: tqnlhqtruatpaplsrtso
+Key: ${SUPABASE_KEY.substring(0, 50)}...
+    `.trim();
+
+    window.testConnection = async function() {
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = '<div class="result info"><h3>Testing...</h3></div>';
+
+      try {
+        // Test 1: Check if project exists
+        console.log('Testing project existence...');
+        const healthCheck = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`
+          }
+        });
+
+        console.log('Health check response:', healthCheck.status);
+
+        if (healthCheck.status === 404) {
+          resultDiv.innerHTML = `
+            <div class="result error">
+              <h3>❌ Supabase Project Not Found</h3>
+              <p><strong>Your Supabase project has been deleted or doesn't exist.</strong></p>
+              <p>Status: ${healthCheck.status}</p>
+              <p>URL: ${SUPABASE_URL}</p>
+
+              <h4>Next Steps:</h4>
+              <ol>
+                <li>Go to <a href="https://app.supabase.com" target="_blank">app.supabase.com</a></li>
+                <li>Create a new project</li>
+                <li>Update your .env file with new credentials</li>
+                <li>Run database migrations</li>
+              </ol>
+            </div>
+          `;
+          return;
+        }
+
+        if (!healthCheck.ok && healthCheck.status !== 401) {
+          throw new Error(`HTTP ${healthCheck.status}: ${healthCheck.statusText}`);
+        }
+
+        // Test 2: Try to query a table
+        console.log('Testing database access...');
+        const tableCheck = await fetch(`${SUPABASE_URL}/rest/v1/profiles?limit=1`, {
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        console.log('Table check response:', tableCheck.status);
+
+        let html = '';
+
+        if (tableCheck.status === 404) {
+          html = `
+            <div class="result error">
+              <h3>⚠️ Project Exists but Tables Not Found</h3>
+              <p><strong>Your Supabase project exists, but database tables are missing.</strong></p>
+              <p>This means migrations haven't been run yet.</p>
+
+              <h4>Next Steps:</h4>
+              <ol>
+                <li>Run the database migrations in Supabase Dashboard</li>
+                <li>Go to: SQL Editor in your Supabase project</li>
+                <li>Execute all .sql files from <code>supabase/migrations/</code></li>
+              </ol>
+            </div>
+          `;
+        } else if (tableCheck.ok) {
+          const data = await tableCheck.json();
+          html = `
+            <div class="result success">
+              <h3>✅ Supabase Project is Working!</h3>
+              <p><strong>Your project exists and database is accessible.</strong></p>
+              <pre>${JSON.stringify({
+                status: tableCheck.status,
+                url: SUPABASE_URL,
+                profilesTableExists: true,
+                recordCount: data.length
+              }, null, 2)}</pre>
+
+              <p style="margin-top: 20px;"><strong>Note:</strong> If authentication still isn't working,
+              the issue is likely email confirmation settings in Supabase.</p>
+            </div>
+          `;
+        } else {
+          html = `
+            <div class="result error">
+              <h3>⚠️ Database Error</h3>
+              <p>Status: ${tableCheck.status}</p>
+              <p>Response: ${await tableCheck.text()}</p>
+            </div>
+          `;
+        }
+
+        resultDiv.innerHTML = html;
+
+      } catch (error) {
+        console.error('Connection test error:', error);
+        resultDiv.innerHTML = `
+          <div class="result error">
+            <h3>❌ Connection Failed</h3>
+            <p><strong>Error:</strong> ${error.message}</p>
+            <p>This usually means:</p>
+            <ul>
+              <li>The Supabase project was deleted</li>
+              <li>The URL or API key is incorrect</li>
+              <li>Network/CORS issues</li>
+            </ul>
+
+            <h4>Check:</h4>
+            <ol>
+              <li>Go to <a href="https://app.supabase.com" target="_blank">app.supabase.com</a></li>
+              <li>See if project "tqnlhqtruatpaplsrtso" exists</li>
+              <li>If not, create a new project</li>
+            </ol>
+          </div>
+        `;
+      }
+    };
+
+    // Auto-run test on load
+    window.testConnection();
+  </script>
+</body>
+</html>
