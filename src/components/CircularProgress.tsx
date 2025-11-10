@@ -20,17 +20,17 @@ export const CircularProgress = ({
   const offset = circumference - (score / 100) * circumference;
 
   const getScoreColor = (score: number) => {
-    if (score >= 86) return "hsl(var(--success))";
-    if (score >= 71) return "hsl(var(--warning))";
-    if (score >= 41) return "hsl(25, 95%, 61%)"; // Orange
-    return "hsl(var(--danger))";
+    if (score >= 86) return "#4ade80"; // green-400
+    if (score >= 71) return "#4ade80"; // green-400
+    if (score >= 41) return "#facc15"; // yellow-400
+    return "#f87171"; // red-400
   };
 
   const getTextColor = (score: number) => {
-    if (score >= 86) return "text-success";
-    if (score >= 71) return "text-warning";
-    if (score >= 41) return "text-[hsl(25,95%,61%)]";
-    return "text-danger";
+    if (score >= 86) return "text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.5)]";
+    if (score >= 71) return "text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.5)]";
+    if (score >= 41) return "text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]";
+    return "text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]";
   };
 
   return (
@@ -41,16 +41,25 @@ export const CircularProgress = ({
           height={size}
           className="transform -rotate-90"
         >
+          <defs>
+            <filter id="glow-progress">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
           {/* Background circle */}
           <circle
             cx={size / 2}
             cy={size / 2}
             r={radius}
             fill="none"
-            stroke="hsl(var(--muted))"
+            stroke="#262626"
             strokeWidth={strokeWidth}
           />
-          {/* Progress circle */}
+          {/* Progress circle with glow */}
           <circle
             cx={size / 2}
             cy={size / 2}
@@ -61,29 +70,30 @@ export const CircularProgress = ({
             strokeDasharray={circumference}
             strokeDashoffset={offset}
             strokeLinecap="round"
+            filter="url(#glow-progress)"
             className="transition-all duration-1000 ease-out"
           />
         </svg>
-        
+
         {/* Score text in center */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <div className={`text-5xl font-bold ${getTextColor(score)} animate-count-up`}>
             {score}
           </div>
-          <div className="text-sm text-muted-foreground mt-1">Glow Score</div>
+          <div className="text-sm text-neutral-400 mt-1">Glow Score</div>
         </div>
       </div>
       
       {/* Delta and subtext */}
       {delta !== undefined && delta !== 0 && (
-        <div className={`flex items-center gap-1 mt-4 ${delta > 0 ? 'text-success' : 'text-danger'}`}>
+        <div className={`flex items-center gap-1 mt-4 ${delta > 0 ? 'text-green-400' : 'text-red-400'}`}>
           {delta > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
           <span className="font-semibold">{delta > 0 ? '+' : ''}{delta} from last scan</span>
         </div>
       )}
-      
+
       {subtext && (
-        <div className="text-sm text-muted-foreground mt-2">{subtext}</div>
+        <div className="text-sm text-neutral-400 mt-2">{subtext}</div>
       )}
     </div>
   );
