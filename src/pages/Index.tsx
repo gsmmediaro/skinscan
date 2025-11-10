@@ -103,12 +103,12 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
+    <div className="min-h-screen bg-neutral-950">
       {/* Hero Section */}
       <section className="container mx-auto px-4 pt-8 pb-16">
         {/* Header with Sign In */}
         <div className="flex items-center justify-between mb-12">
-          <div className="text-2xl font-bold text-primary">
+          <div className="text-2xl font-bold text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.5)]">
             SkinScan
           </div>
           {!isAuthenticated ? (

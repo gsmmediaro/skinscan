@@ -261,10 +261,10 @@ const Results = () => {
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 86) return { text: "text-success", bg: "bg-success", border: "border-success" };
-    if (score >= 71) return { text: "text-[hsl(180,60%,45%)]", bg: "bg-[hsl(180,60%,45%)]", border: "border-[hsl(180,60%,45%)]" };
-    if (score >= 56) return { text: "text-warning", bg: "bg-warning", border: "border-warning" };
-    return { text: "text-danger", bg: "bg-danger", border: "border-danger" };
+    if (score >= 86) return { text: "text-green-400", bg: "bg-green-500", border: "border-green-500", glow: "shadow-green-500/50" };
+    if (score >= 71) return { text: "text-green-400", bg: "bg-green-500", border: "border-green-500", glow: "shadow-green-500/50" };
+    if (score >= 56) return { text: "text-yellow-400", bg: "bg-yellow-500", border: "border-yellow-500", glow: "shadow-yellow-500/50" };
+    return { text: "text-red-400", bg: "bg-red-500", border: "border-red-500", glow: "shadow-red-500/50" };
   };
 
   const colors = getScoreColor(scan.glowScore);
@@ -280,13 +280,13 @@ const Results = () => {
   const focusMetric = metricsArray[0];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-neutral-950">
       {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-10">
+      <header className="bg-neutral-900 border-b border-neutral-800 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <button
             onClick={() => navigate("/")}
-            className="text-2xl font-bold text-foreground"
+            className="text-2xl font-bold text-white"
           >
             SkinScan
           </button>
@@ -333,44 +333,44 @@ const Results = () => {
         {/* Quick Snapshot */}
         <section className="grid md:grid-cols-2 gap-6 mb-16">
           {/* Strengths Card */}
-          <Card className="p-6 bg-success/5 border-success/20">
+          <Card className="p-6 bg-neutral-900 border-green-500/20 rounded-2xl shadow-lg shadow-green-500/10">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-xl bg-success/10">
-                <CheckCircle className="w-6 h-6 text-success" />
+              <div className="p-2 rounded-xl bg-green-500/10">
+                <CheckCircle className="w-6 h-6 text-green-400" />
               </div>
-              <h3 className="text-lg font-semibold">Your Strengths</h3>
+              <h3 className="text-lg font-semibold text-white">Your Strengths</h3>
             </div>
-            <p className="text-2xl font-bold text-success mb-1">
-              {strengthMetric.name}: {strengthMetric.score}/100
+            <p className="text-3xl font-bold text-green-400 mb-1">
+              {strengthMetric.name}: {strengthMetric.score}
             </p>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-neutral-400 mb-4">
               Your {strengthMetric.name.toLowerCase()} is {strengthMetric.severity.toLowerCase()}
             </p>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-success"
+            <div className="h-2 bg-neutral-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-green-500 shadow-lg shadow-green-500/50"
                 style={{ width: `${strengthMetric.score}%` }}
               />
             </div>
           </Card>
 
           {/* Focus Area Card */}
-          <Card className={`p-6 ${focusMetric.score >= 56 ? "bg-warning/5 border-warning/20" : "bg-danger/5 border-danger/20"}`}>
+          <Card className={`p-6 bg-neutral-900 rounded-2xl shadow-lg ${focusMetric.score >= 56 ? "border-yellow-500/20 shadow-yellow-500/10" : "border-red-500/20 shadow-red-500/10"}`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className={`p-2 rounded-xl ${focusMetric.score >= 56 ? "bg-warning/10" : "bg-danger/10"}`}>
-                <Target className={`w-6 h-6 ${focusMetric.score >= 56 ? "text-warning" : "text-danger"}`} />
+              <div className={`p-2 rounded-xl ${focusMetric.score >= 56 ? "bg-yellow-500/10" : "bg-red-500/10"}`}>
+                <Target className={`w-6 h-6 ${focusMetric.score >= 56 ? "text-yellow-400" : "text-red-400"}`} />
               </div>
-              <h3 className="text-lg font-semibold">Focus Area</h3>
+              <h3 className="text-lg font-semibold text-white">Focus Area</h3>
             </div>
-            <p className={`text-2xl font-bold mb-1 ${focusMetric.score >= 56 ? "text-warning" : "text-danger"}`}>
-              {focusMetric.name}: {focusMetric.score}/100
+            <p className={`text-3xl font-bold mb-1 ${focusMetric.score >= 56 ? "text-yellow-400" : "text-red-400"}`}>
+              {focusMetric.name}: {focusMetric.score}
             </p>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-neutral-400 mb-4">
               Addressing this will improve your overall score most
             </p>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div 
-                className={focusMetric.score >= 56 ? "h-full bg-warning" : "h-full bg-danger"}
+            <div className="h-2 bg-neutral-800 rounded-full overflow-hidden">
+              <div
+                className={focusMetric.score >= 56 ? "h-full bg-yellow-500 shadow-lg shadow-yellow-500/50" : "h-full bg-red-500 shadow-lg shadow-red-500/50"}
                 style={{ width: `${focusMetric.score}%` }}
               />
             </div>
@@ -424,7 +424,7 @@ const Results = () => {
 
         {/* Visual Analysis */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold mb-6">What We Found</h2>
+          <h2 className="text-2xl font-bold mb-6 text-white">What We Found</h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <h3 className="font-semibold mb-3">Your Photo</h3>
@@ -504,36 +504,36 @@ const Results = () => {
 
         {/* Detailed Breakdown */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold mb-6">Detailed Metrics</h2>
-          <div className="grid md:grid-cols-2 gap-4">
+          <h2 className="text-2xl font-bold mb-6 text-white">Detailed Metrics</h2>
+          <div className="grid grid-cols-2 gap-4">
             {metricsArray.map((metric) => {
               const metricColors = getScoreColor(metric.score);
               const change = metricDeltas[metric.key] || 0;
-              
+
               return (
-                <Card 
+                <Card
                   key={metric.key}
-                  className="p-6 cursor-pointer hover:shadow-md transition-shadow"
+                  className={`p-6 cursor-pointer bg-neutral-900 border-neutral-800 rounded-2xl hover:shadow-lg hover:${metricColors.glow} transition-all`}
                   onClick={() => setSelectedMetric(metric)}
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <h3 className="font-semibold text-lg">{metric.name}</h3>
-                    <span className={`text-2xl font-bold ${metricColors.text}`}>
+                    <h3 className="font-semibold text-base text-white">{metric.name}</h3>
+                    <span className={`text-3xl font-bold ${metricColors.text}`}>
                       {metric.score}
                     </span>
                   </div>
-                  
+
                   <div className="mb-3">
-                    <div className="w-full bg-muted rounded-full h-2 mb-2">
+                    <div className="w-full bg-neutral-800 rounded-full h-2 mb-2">
                       <div
-                        className={`h-2 rounded-full ${metricColors.bg}`}
+                        className={`h-2 rounded-full ${metricColors.bg} shadow-lg ${metricColors.glow}`}
                         style={{ width: `${metric.score}%` }}
                       />
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">{metric.severity}</span>
+                      <span className="text-neutral-400">{metric.severity}</span>
                       {change !== 0 && (
-                        <span className={`flex items-center gap-1 ${change > 0 ? "text-success" : "text-danger"}`}>
+                        <span className={`flex items-center gap-1 ${change > 0 ? "text-green-400" : "text-red-400"}`}>
                           {change > 0 ? (
                             <TrendingUp className="w-4 h-4" />
                           ) : (
@@ -544,8 +544,8 @@ const Results = () => {
                       )}
                     </div>
                   </div>
-                  
-                  <p className="text-sm text-muted-foreground">
+
+                  <p className="text-xs text-neutral-400">
                     {metric.description}
                   </p>
                 </Card>
@@ -556,34 +556,34 @@ const Results = () => {
 
         {/* Action Items */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold mb-6">Your Next Steps</h2>
-          <Card className="p-6">
+          <h2 className="text-2xl font-bold mb-6 text-white">Your Next Steps</h2>
+          <Card className="p-6 bg-neutral-900 border-neutral-800 rounded-2xl">
             <ol className="space-y-4">
               <li className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-success/10 text-success flex items-center justify-center font-semibold">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center font-semibold">
                   1
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium mb-1">Start using a vitamin C serum for {focusMetric.name.toLowerCase()}</p>
-                  <p className="text-sm text-muted-foreground">Apply in the morning after cleansing</p>
+                  <p className="font-medium mb-1 text-white">Start using a vitamin C serum for {focusMetric.name.toLowerCase()}</p>
+                  <p className="text-sm text-neutral-400">Apply in the morning after cleansing</p>
                 </div>
               </li>
               <li className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-success/10 text-success flex items-center justify-center font-semibold">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center font-semibold">
                   2
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium mb-1">Add retinol to evening routine for texture</p>
-                  <p className="text-sm text-muted-foreground">Start with 2-3 times per week</p>
+                  <p className="font-medium mb-1 text-white">Add retinol to evening routine for texture</p>
+                  <p className="text-sm text-neutral-400">Start with 2-3 times per week</p>
                 </div>
               </li>
               <li className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-success/10 text-success flex items-center justify-center font-semibold">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center font-semibold">
                   3
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium mb-1">Take your next scan in 5-7 days</p>
-                  <p className="text-sm text-muted-foreground">Track your progress over time</p>
+                  <p className="font-medium mb-1 text-white">Take your next scan in 5-7 days</p>
+                  <p className="text-sm text-neutral-400">Track your progress over time</p>
                 </div>
               </li>
             </ol>
