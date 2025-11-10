@@ -156,14 +156,16 @@ const Scan = () => {
 
       const formData = new FormData();
       formData.append('image', imageBlob, 'selfie.jpg');
+      formData.append('userId', session.user.id);
+      formData.append('userEmail', session.user.email || '');
 
-      const backendUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze`;
-      
-      const webhookResponse = await fetch(backendUrl, {
+      // Use n8n webhook for AI analysis
+      const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL;
+
+      console.log('[Scan] Sending image to n8n webhook:', webhookUrl);
+
+      const webhookResponse = await fetch(webhookUrl, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
         body: formData,
       });
 
