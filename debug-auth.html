@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkinScan Auth Debug</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #0f0f0f;
+      color: #fff;
+    }
+    .test-section {
+      background: #1a1a1a;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    .success { background: #1a3d1a; border: 1px solid #2d5f2d; }
+    .error { background: #3d1a1a; border: 1px solid #5f2d2d; }
+    .warning { background: #3d3d1a; border: 1px solid #5f5f2d; }
+    .info { background: #1a1a3d; border: 1px solid #2d2d5f; }
+    button {
+      background: #4a9eff;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 5px;
+      font-size: 14px;
+    }
+    button:hover { background: #3a8eef; }
+    button:disabled { background: #666; cursor: not-allowed; }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      background: #0f0f0f;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 14px;
+    }
+    pre {
+      background: #0a0a0a;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+    h1 { color: #4a9eff; }
+    h2 { color: #7ab8ff; margin-top: 0; }
+  </style>
+</head>
+<body>
+  <h1>🔍 SkinScan Authentication Debugger</h1>
+  <p>This tool will test your Supabase connection and identify authentication issues.</p>
+
+  <!-- Test 1: Connection -->
+  <div class="test-section">
+    <h2>Test 1: Supabase Connection</h2>
+    <div id="connection-status">Testing...</div>
+  </div>
+
+  <!-- Test 2: Tables -->
+  <div class="test-section">
+    <h2>Test 2: Database Tables</h2>
+    <div id="tables-status">Waiting for connection test...</div>
+  </div>
+
+  <!-- Test 3: Auth Settings -->
+  <div class="test-section">
+    <h2>Test 3: Auth Configuration</h2>
+    <div id="auth-settings-status">Waiting for connection test...</div>
+  </div>
+
+  <!-- Test 4: Sign Up -->
+  <div class="test-section">
+    <h2>Test 4: Test Sign Up</h2>
+    <p>Try creating a test account:</p>
+    <input type="email" id="test-email" placeholder="test@example.com" value="test@example.com">
+    <input type="password" id="test-password" placeholder="password123" value="password123">
+    <button onclick="testSignUp()" id="signup-btn">Test Sign Up</button>
+    <div id="signup-status"></div>
+  </div>
+
+  <!-- Test 5: Sign In -->
+  <div class="test-section">
+    <h2>Test 5: Test Sign In</h2>
+    <button onclick="testSignIn()" id="signin-btn">Test Sign In (with above credentials)</button>
+    <div id="signin-status"></div>
+  </div>
+
+  <!-- Logs -->
+  <div class="test-section">
+    <h2>Detailed Logs</h2>
+    <pre id="logs"></pre>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://tqnlhqtruatpaplsrtso.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxbmxocXRydWF0cGFwbHNydHNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMTcxODAsImV4cCI6MjA3NDg5MzE4MH0.jKLQ4bJ1ucR93lpfqNEZHIsZL-XCO80ZzIJWGKPe0PY";
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    let logs = [];
+
+    function log(message, data = null) {
+      const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+      const logEntry = `[${timestamp}] ${message}`;
+      logs.push(logEntry);
+      if (data) {
+        logs.push(JSON.stringify(data, null, 2));
+      }
+      document.getElementById('logs').textContent = logs.join('\n');
+      console.log(message, data);
+    }
+
+    function setStatus(elementId, message, type) {
+      const el = document.getElementById(elementId);
+      el.innerHTML = `<div class="status ${type}">${message}</div>`;
+    }
+
+    // Test 1: Connection
+    async function testConnection() {
+      log('Testing Supabase connection...');
+      try {
+        const { data, error } = await supabase.from('profiles').select('count').limit(0);
+
+        if (error) {
+          log('Connection test error:', error);
+
+          if (error.code === '42P01') {
+            setStatus('connection-status',
+              '⚠️ Connection OK, but tables don\'t exist\n\n' +
+              'Your Supabase project is connected, but the database tables haven\'t been created yet.\n\n' +
+              '👉 You need to run the migrations in the SQL Editor.',
+              'warning'
+            );
+            return 'no-tables';
+          } else if (error.message.includes('JWT')) {
+            setStatus('connection-status',
+              '❌ Invalid API Key\n\nThe Supabase API key in your .env file is incorrect or expired.',
+              'error'
+            );
+            return 'invalid-key';
+          } else {
+            setStatus('connection-status',
+              `⚠️ Connection Error: ${error.message}\n\nCode: ${error.code}`,
+              'warning'
+            );
+            return 'error';
+          }
+        }
+
+        log('Connection successful!');
+        setStatus('connection-status', '✅ Connected to Supabase successfully!', 'success');
+        return 'success';
+      } catch (err) {
+        log('Connection exception:', err);
+        setStatus('connection-status',
+          `❌ Connection Failed\n\n${err.message}\n\nMake sure your Supabase project exists and the URL/key are correct.`,
+          'error'
+        );
+        return 'exception';
+      }
+    }
+
+    // Test 2: Check Tables
+    async function testTables() {
+      log('Checking database tables...');
+      const tables = ['profiles', 'scans', 'user_stats', 'invites', 'achievements', 'user_achievements', 'user_preferences'];
+      const results = {};
+
+      for (const table of tables) {
+        try {
+          const { data, error } = await supabase.from(table).select('count').limit(0);
+
+          if (error) {
+            if (error.code === '42P01') {
+              results[table] = '❌ Does not exist';
+            } else {
+              results[table] = `⚠️ ${error.message}`;
+            }
+          } else {
+            results[table] = '✅ Exists';
+          }
+        } catch (err) {
+          results[table] = `❌ ${err.message}`;
+        }
+      }
+
+      log('Table check results:', results);
+
+      const allExist = Object.values(results).every(v => v.startsWith('✅'));
+      const noneExist = Object.values(results).every(v => v.startsWith('❌'));
+
+      let message = '<strong>Tables Status:</strong><br>';
+      for (const [table, status] of Object.entries(results)) {
+        message += `${status} ${table}<br>`;
+      }
+
+      if (allExist) {
+        message += '<br>✅ All tables exist! Database is properly set up.';
+        setStatus('tables-status', message, 'success');
+      } else if (noneExist) {
+        message += '<br>❌ No tables exist. You MUST run the migrations in Supabase SQL Editor.<br><br>';
+        message += '📋 Instructions:<br>';
+        message += '1. Go to: https://app.supabase.com/project/tqnlhqtruatpaplsrtso<br>';
+        message += '2. Click "SQL Editor" in left sidebar<br>';
+        message += '3. Run each .sql file from supabase/migrations/ folder<br>';
+        message += '4. Refresh this page and test again';
+        setStatus('tables-status', message, 'error');
+      } else {
+        message += '<br>⚠️ Some tables are missing. Re-run all migrations.';
+        setStatus('tables-status', message, 'warning');
+      }
+
+      return allExist;
+    }
+
+    // Test 3: Auth Settings
+    async function testAuthSettings() {
+      log('Checking auth configuration...');
+
+      // We can't directly check settings, but we can infer from behavior
+      setStatus('auth-settings-status',
+        'ℹ️ Auth settings check requires a sign-up test.<br><br>' +
+        'Will check after you test sign-up below.<br><br>' +
+        '⚙️ Expected configuration for development:<br>' +
+        '• Email confirmation: DISABLED<br>' +
+        '• Auto-confirm users: ENABLED<br>' +
+        '• Secure email change: DISABLED',
+        'info'
+      );
+    }
+
+    // Test 4: Sign Up
+    async function testSignUp() {
+      const email = document.getElementById('test-email').value;
+      const password = document.getElementById('test-password').value;
+      const btn = document.getElementById('signup-btn');
+
+      if (!email || !password) {
+        setStatus('signup-status', '⚠️ Please enter email and password', 'warning');
+        return;
+      }
+
+      btn.disabled = true;
+      log(`Attempting sign up with: ${email}`);
+      setStatus('signup-status', '⏳ Creating account...', 'info');
+
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email: email,
+          password: password,
+          options: {
+            emailRedirectTo: window.location.origin + '/auth/callback',
+            data: { test_account: true }
+          }
+        });
+
+        log('Sign up response:', { data, error });
+
+        if (error) {
+          log('Sign up error:', error);
+          setStatus('signup-status',
+            `❌ Sign Up Failed<br><br>${error.message}<br><br>Code: ${error.code || 'unknown'}`,
+            'error'
+          );
+          btn.disabled = false;
+          return;
+        }
+
+        // Check if email confirmation is required
+        if (data.user && !data.session) {
+          log('Email confirmation required');
+          setStatus('signup-status',
+            '⚠️ Email Confirmation Required<br><br>' +
+            'Account created but you need to verify your email.<br><br>' +
+            '🔧 <strong>For development, you should DISABLE email confirmation:</strong><br>' +
+            '1. Go to: <a href="https://app.supabase.com/project/tqnlhqtruatpaplsrtso/auth/providers" target="_blank">Auth Providers</a><br>' +
+            '2. Find "Email" section<br>' +
+            '3. UNCHECK "Enable email confirmations"<br>' +
+            '4. Click "Save"<br>' +
+            '5. Try signing up again with a different email',
+            'warning'
+          );
+
+          setStatus('auth-settings-status',
+            '⚠️ Email confirmation is ENABLED<br><br>' +
+            'This is why authentication isn\'t working!<br><br>' +
+            'See instructions in Test 4 above to disable it.',
+            'warning'
+          );
+        } else if (data.session) {
+          log('Sign up successful with session!', data.session);
+          setStatus('signup-status',
+            '✅ Sign Up Successful!<br><br>' +
+            `User ID: ${data.user.id}<br>` +
+            `Email: ${data.user.email}<br>` +
+            `Session: Active ✓<br><br>` +
+            '🎉 Authentication is working correctly!',
+            'success'
+          );
+
+          setStatus('auth-settings-status',
+            '✅ Email confirmation is DISABLED (correct for dev)<br><br>' +
+            'Auth configuration looks good!',
+            'success'
+          );
+
+          // Check if profile was created
+          setTimeout(checkProfile, 1000);
+        }
+
+        btn.disabled = false;
+      } catch (err) {
+        log('Sign up exception:', err);
+        setStatus('signup-status',
+          `❌ Unexpected Error<br><br>${err.message}`,
+          'error'
+        );
+        btn.disabled = false;
+      }
+    }
+
+    // Check if profile was created
+    async function checkProfile() {
+      log('Checking if profile was created...');
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        log('No user found');
+        return;
+      }
+
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      log('Profile check:', { profile, error });
+
+      if (error) {
+        if (error.code === '42P01') {
+          setStatus('signup-status',
+            '⚠️ Sign up worked, but profile table doesn\'t exist!<br><br>' +
+            'You need to run the database migrations.',
+            'warning'
+          );
+        } else if (error.code === 'PGRST116') {
+          setStatus('signup-status',
+            '⚠️ Sign up worked, but profile was not created!<br><br>' +
+            'The handle_new_user() trigger might not be working.<br><br>' +
+            'Check that all migrations were run correctly.',
+            'warning'
+          );
+        }
+      } else if (profile) {
+        log('Profile created successfully!', profile);
+        setStatus('signup-status',
+          '✅ Sign Up Successful + Profile Created!<br><br>' +
+          `User ID: ${user.id}<br>` +
+          `Email: ${profile.email}<br>` +
+          `Subscription: ${profile.subscription_tier}<br>` +
+          `Created: ${new Date(profile.created_at).toLocaleString()}<br><br>` +
+          '🎉 Everything is working perfectly!',
+          'success'
+        );
+      }
+    }
+
+    // Test 5: Sign In
+    async function testSignIn() {
+      const email = document.getElementById('test-email').value;
+      const password = document.getElementById('test-password').value;
+      const btn = document.getElementById('signin-btn');
+
+      if (!email || !password) {
+        setStatus('signin-status', '⚠️ Please enter email and password', 'warning');
+        return;
+      }
+
+      btn.disabled = true;
+      log(`Attempting sign in with: ${email}`);
+      setStatus('signin-status', '⏳ Signing in...', 'info');
+
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password,
+        });
+
+        log('Sign in response:', { data, error });
+
+        if (error) {
+          log('Sign in error:', error);
+          setStatus('signin-status',
+            `❌ Sign In Failed<br><br>${error.message}<br><br>` +
+            'Possible reasons:<br>' +
+            '• Account doesn\'t exist (try Test Sign Up first)<br>' +
+            '• Wrong password<br>' +
+            '• Email not confirmed (if confirmation is enabled)',
+            'error'
+          );
+          btn.disabled = false;
+          return;
+        }
+
+        if (data.session) {
+          log('Sign in successful!', data.session);
+          setStatus('signin-status',
+            '✅ Sign In Successful!<br><br>' +
+            `User ID: ${data.user.id}<br>` +
+            `Email: ${data.user.email}<br>` +
+            `Session: Active ✓<br><br>` +
+            '🎉 Authentication is working!',
+            'success'
+          );
+        }
+
+        btn.disabled = false;
+      } catch (err) {
+        log('Sign in exception:', err);
+        setStatus('signin-status',
+          `❌ Unexpected Error<br><br>${err.message}`,
+          'error'
+        );
+        btn.disabled = false;
+      }
+    }
+
+    // Run tests on load
+    (async () => {
+      log('Starting diagnostic tests...');
+      const connectionStatus = await testConnection();
+
+      if (connectionStatus === 'success' || connectionStatus === 'no-tables') {
+        await testTables();
+        await testAuthSettings();
+      } else {
+        setStatus('tables-status', 'Skipped (connection failed)', 'info');
+        setStatus('auth-settings-status', 'Skipped (connection failed)', 'info');
+      }
+
+      log('Diagnostic tests complete. Use the sign-up test to verify auth works.');
+    })();
+  </script>
+</body>
+</html>
