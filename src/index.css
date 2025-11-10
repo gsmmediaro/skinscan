@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,60 +11,60 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Clean white background */
+    /* Clean white background - Professional white design */
     --background: 0 0% 100%;
-    --foreground: 0 0% 20%;
+    --foreground: 0 0% 11%; /* gray-900 for primary text */
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 20%;
+    --card-foreground: 0 0% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 20%;
+    --popover-foreground: 0 0% 11%;
 
-    /* Soft Blue - clinical, clean primary */
-    --primary: 203 68% 84%;
-    --primary-foreground: 0 0% 20%;
-    
-    /* Charcoal Gray - professional secondary */
+    /* Professional Blue - Single accent color (#3b82f6 = blue-500) */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Neutral Gray - professional secondary */
     --secondary: 0 0% 40%;
     --secondary-foreground: 0 0% 100%;
 
-    /* Success green - clinical success */
-    --success: 145 63% 42%;
+    /* Blue accent for success (keeping consistent with primary) */
+    --success: 217 91% 60%;
     --success-foreground: 0 0% 100%;
 
-    /* Warning orange - attention */
-    --warning: 38 92% 50%;
+    /* Yellow for warnings */
+    --warning: 45 93% 47%;
     --warning-foreground: 0 0% 100%;
-    
-    /* Coral - error/danger states */
-    --danger: 0 79% 70%;
+
+    /* Red for errors */
+    --danger: 0 72% 51%;
     --danger-foreground: 0 0% 100%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 210 40% 96%; /* gray-50 for subtle backgrounds */
+    --muted-foreground: 0 0% 38%; /* gray-600 for secondary text */
 
-    --accent: 0 79% 70%;
+    --accent: 217 91% 60%; /* Same as primary - single blue accent */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 79% 70%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 203 68% 84%;
+    --border: 0 0% 90%; /* gray-200 */
+    --input: 0 0% 90%;
+    --ring: 217 91% 60%; /* blue-500 */
 
     --radius: 0.75rem;
     
-    /* Gradients */
-    --gradient-glow: linear-gradient(135deg, hsl(203 68% 84%) 0%, hsl(203 68% 70%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(203 68% 98%) 100%);
-    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(210 40% 98%) 100%);
-    
-    /* Shadows */
-    --shadow-glow: 0 10px 40px -10px hsl(203 68% 84% / 0.3);
-    --shadow-card: 0 4px 20px -4px hsl(215 16% 47% / 0.1);
-    --shadow-premium: 0 20px 60px -10px hsl(0 79% 70% / 0.4);
+    /* Gradients - Professional blue accent */
+    --gradient-glow: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(217 91% 50%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 98%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(0 0% 98%) 100%);
+
+    /* Shadows - Subtle and professional */
+    --shadow-glow: 0 10px 40px -10px hsl(217 91% 60% / 0.2);
+    --shadow-card: 0 4px 20px -4px hsl(0 0% 0% / 0.08);
+    --shadow-premium: 0 20px 60px -10px hsl(217 91% 60% / 0.3);
     
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -85,46 +88,48 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 215 28% 17%;
-    --foreground: 0 0% 98%;
+    /* Dark mode - Professional dark gray backgrounds */
+    --background: 0 0% 10%; /* #1a1a1a */
+    --foreground: 0 0% 92%; /* Light gray for text */
 
-    --card: 215 28% 15%;
-    --card-foreground: 0 0% 98%;
+    --card: 0 0% 12%; /* Slightly lighter than background */
+    --card-foreground: 0 0% 92%;
 
-    --popover: 215 28% 15%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 92%;
 
-    --primary: 203 68% 84%;
-    --primary-foreground: 0 0% 20%;
-    
-    --secondary: 0 0% 40%;
+    /* Same blue accent in dark mode */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 30%;
     --secondary-foreground: 0 0% 100%;
 
-    --success: 145 63% 42%;
+    --success: 217 91% 60%; /* Blue accent consistent */
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
+    --warning: 45 93% 47%;
     --warning-foreground: 0 0% 100%;
-    
-    --danger: 0 79% 70%;
+
+    --danger: 0 72% 51%;
     --danger-foreground: 0 0% 100%;
 
-    --muted: 215 28% 25%;
-    --muted-foreground: 217 10% 65%;
+    --muted: 0 0% 17%; /* Subtle dark background */
+    --muted-foreground: 0 0% 60%; /* Medium gray for secondary text */
 
-    --accent: 0 79% 70%;
+    --accent: 217 91% 60%; /* Blue accent */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 79% 70%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 28% 25%;
-    --input: 215 28% 25%;
-    --ring: 203 68% 84%;
-    
-    --gradient-glow: linear-gradient(135deg, hsl(203 68% 70%) 0%, hsl(203 68% 50%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(215 28% 17%) 0%, hsl(203 68% 25%) 100%);
-    --gradient-card: linear-gradient(135deg, hsl(215 28% 15%) 0%, hsl(203 68% 20%) 100%);
+    --border: 0 0% 20%; /* Dark borders */
+    --input: 0 0% 20%;
+    --ring: 217 91% 60%;
+
+    --gradient-glow: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(217 91% 50%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 10%) 0%, hsl(0 0% 12%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 12%) 0%, hsl(0 0% 14%) 100%);
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
