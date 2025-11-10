@@ -107,30 +107,28 @@ const Scan = () => {
   const handleUpgrade = async () => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
+
       if (sessionError || !session) {
         toast.error("Please sign in to upgrade");
         navigate("/auth");
         return;
       }
 
-      toast.info("Opening checkout...");
+      // TODO: Implement Stripe checkout
+      toast.info("Premium features coming soon!", {
+        description: "Stripe integration needs to be configured. Contact support for early access.",
+        duration: 5000,
+      });
 
-      const { data, error } = await supabase.functions.invoke('create-checkout');
-      
-      if (error) throw error;
-      
-      if (data?.url) {
-        // Open in new tab so user doesn't lose their captured photo
-        window.open(data.url, '_blank');
-        toast.success("Checkout opened in new tab", {
-          description: "Complete payment to unlock unlimited scans"
-        });
-      }
+      // Placeholder for future Stripe integration:
+      // const { data, error } = await supabase.functions.invoke('create-checkout');
+      // if (error) throw error;
+      // if (data?.url) window.open(data.url, '_blank');
+
     } catch (error) {
       console.error('Upgrade error:', error);
-      toast.error("Failed to start checkout", {
-        description: "Please try again or contact support"
+      toast.error("Premium features not yet available", {
+        description: "Stripe checkout is being configured. Stay tuned!"
       });
     }
   };

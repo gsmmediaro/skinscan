@@ -165,7 +165,7 @@ const Results = () => {
 
       // Check if user is authenticated
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         toast.error("Please sign in to upgrade", {
           description: "You need to be signed in to access premium features"
@@ -174,24 +174,22 @@ const Results = () => {
         return;
       }
 
-      // Create Stripe checkout session
-      const { data, error } = await supabase.functions.invoke('create-checkout');
+      // TODO: Implement Stripe checkout
+      // For now, show informational message
+      toast.info("Premium features coming soon!", {
+        description: "Stripe integration needs to be configured. Contact support for early access.",
+        duration: 5000,
+      });
 
-      if (error) throw error;
+      // Placeholder for future Stripe integration:
+      // const { data, error } = await supabase.functions.invoke('create-checkout');
+      // if (error) throw error;
+      // if (data?.url) window.open(data.url, '_blank');
 
-      if (data?.url) {
-        // Open Stripe checkout in new tab
-        window.open(data.url, '_blank');
-        toast.success("Opening checkout...", {
-          description: "Complete your purchase to unlock premium features"
-        });
-      } else {
-        throw new Error("No checkout URL received");
-      }
     } catch (error: any) {
       console.error("Premium upgrade error:", error);
-      toast.error("Failed to start checkout", {
-        description: error.message || "Please try again later"
+      toast.error("Premium features not yet available", {
+        description: "Stripe checkout is being configured. Stay tuned!"
       });
     } finally {
       setPremiumLoading(false);
