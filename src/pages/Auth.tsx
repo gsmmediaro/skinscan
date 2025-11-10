@@ -20,10 +20,15 @@ const Auth = () => {
 
   const inviteToken = searchParams.get("invite");
 
+  // Only check for existing session once on mount (not on every render)
   useEffect(() => {
-    const checkOnboardingStatus = async () => {
+    let isMounted = true;
+
+    const checkExistingSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+
+      // Only redirect if there's an existing session AND component is still mounted
+      if (session && isMounted) {
         // Check if user has completed onboarding
         const { data: preferences } = await supabase
           .from("user_preferences")
@@ -40,8 +45,13 @@ const Auth = () => {
       }
     };
 
-    checkOnboardingStatus();
-  }, [navigate]);
+    checkExistingSession();
+
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Empty dependency array - only run once on mount
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,7 +130,7 @@ const Auth = () => {
         return;
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: validation.data.email,
         password: validation.data.password,
       });
@@ -131,8 +141,24 @@ const Auth = () => {
         title: "Welcome back!",
         description: "You've successfully signed in.",
       });
-      
-      navigate("/");
+
+      // Check if user has completed onboarding
+      if (data.user) {
+        const { data: preferences } = await supabase
+          .from("user_preferences")
+          .select("id")
+          .eq("user_id", data.user.id)
+          .single();
+
+        // If onboarding is complete, go home; otherwise go to onboarding
+        if (preferences) {
+          navigate("/");
+        } else {
+          navigate("/onboarding");
+        }
+      } else {
+        navigate("/");
+      }
     } catch (error: any) {
       toast({
         title: "Error",

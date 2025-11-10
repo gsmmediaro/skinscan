@@ -24,6 +24,8 @@ const Results = () => {
   const [isPremium, setIsPremium] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [premiumLoading, setPremiumLoading] = useState(false);
+  const [percentile, setPercentile] = useState<number | null>(null);
+  const [metricDeltas, setMetricDeltas] = useState<Record<string, number>>({});
   const [selectedMetric, setSelectedMetric] = useState<{
     name: string;
     score: number;
@@ -65,15 +67,21 @@ const Results = () => {
         }
 
         setScan(scanData);
-        
+
         // Check premium status
         const { data: profile } = await supabase
           .from("profiles")
           .select("subscription_tier")
           .eq("id", user.id)
           .single();
-        
+
         setIsPremium(profile?.subscription_tier === "premium");
+
+        // Calculate real percentile
+        await calculatePercentile(scanData.glowScore);
+
+        // Calculate real metric deltas from previous scan
+        await calculateMetricDeltas(user.id, scanData.metrics);
       } catch (err) {
         console.error('[Results] Error loading scan:', err);
         setError("unknown");
@@ -87,6 +95,69 @@ const Results = () => {
 
     loadScan();
   }, [scanId, user, authLoading, navigate]);
+
+  const calculatePercentile = async (currentScore: number) => {
+    try {
+      // Get all scans from database
+      const { data: allScans, error } = await supabase
+        .from("scans")
+        .select("glow_score");
+
+      if (error || !allScans) {
+        console.error("Error fetching scans for percentile:", error);
+        setPercentile(null);
+        return;
+      }
+
+      // Count scans with lower scores
+      const lowerScores = allScans.filter(s => s.glow_score < currentScore).length;
+      const totalScans = allScans.length;
+
+      // Calculate percentile (what % of users have lower scores)
+      const calculatedPercentile = totalScans > 0
+        ? Math.round((lowerScores / totalScans) * 100)
+        : 50; // Default to 50th if no data
+
+      setPercentile(calculatedPercentile);
+    } catch (error) {
+      console.error("Percentile calculation error:", error);
+      setPercentile(null);
+    }
+  };
+
+  const calculateMetricDeltas = async (userId: string, currentMetrics: any) => {
+    try {
+      // Get user's previous scans, ordered by timestamp
+      const { data: previousScans, error } = await supabase
+        .from("scans")
+        .select("metrics, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(2); // Get current and previous
+
+      if (error || !previousScans || previousScans.length < 2) {
+        // No previous scan to compare
+        setMetricDeltas({});
+        return;
+      }
+
+      // The second scan is the previous one
+      const previousMetrics = previousScans[1].metrics;
+
+      // Calculate deltas for each metric
+      const deltas: Record<string, number> = {};
+      Object.keys(currentMetrics).forEach((key) => {
+        const currentScore = currentMetrics[key]?.score || 0;
+        const previousScore = previousMetrics[key]?.score || 0;
+        deltas[key] = currentScore - previousScore;
+      });
+
+      setMetricDeltas(deltas);
+    } catch (error) {
+      console.error("Metric delta calculation error:", error);
+      setMetricDeltas({});
+    }
+  };
 
   const handlePremiumUpgrade = async () => {
     try {
@@ -240,9 +311,11 @@ const Results = () => {
             <p className={`text-xl font-display font-semibold ${colors.text}`}>
               {getScoreMessage(scan.glowScore)}
             </p>
-            <p className="text-muted-foreground">
-              You're in the {Math.floor(Math.random() * 30) + 50}th percentile of users
-            </p>
+            {percentile !== null && (
+              <p className="text-muted-foreground">
+                You're in the {percentile}th percentile of users
+              </p>
+            )}
             <p className="text-sm text-muted-foreground">
               Scanned {new Date(scan.timestamp).toLocaleDateString("en-US", { 
                 year: "numeric", 
@@ -435,7 +508,7 @@ const Results = () => {
           <div className="grid md:grid-cols-2 gap-4">
             {metricsArray.map((metric) => {
               const metricColors = getScoreColor(metric.score);
-              const change = Math.floor(Math.random() * 10) - 3;
+              const change = metricDeltas[metric.key] || 0;
               
               return (
                 <Card 
